@@ -109,10 +109,13 @@ form.addEventListener("submit", async (e) => {
   try {
     // 1. Create auth user (password hashed by Supabase — never plain text)
     const { data: authData, error: authError } = await sb.auth.signUp({
-      email: d.email,
-      password: d.password,
-      options: { data: { role: "patient", full_name: d.full_name } }
-    });
+  email: d.email,
+  password: d.password,
+  options: {
+    emailRedirectTo: null,
+    data: { role: "patient", full_name: d.full_name }
+  }
+});
 
     if (authError) {
       showError(authError.message.includes("already registered")
@@ -139,7 +142,7 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    showSuccess("Compte créé ✅ Un email de confirmation a été envoyé à " + d.email + ". Vérifiez votre boîte mail avant de vous connecter.");
+    showSuccess("Compte créé ✅ Bienvenue sur MedNex ! Vous pouvez maintenant vous connecter.");
     form.reset();
     // Don't redirect — let them read the message
 
