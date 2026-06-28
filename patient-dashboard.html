@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MedNex · Patient Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="icon" href="chismya.png" type="image/png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --primary:#134F33;--secondary:#1C7A4D;--light-green:#EAF7EF;
+      --white:#FFFFFF;--bg:#F7FAF8;--border:#E5ECE8;
+      --success:#22C55E;--warning:#F59E0B;--danger:#EF4444;--info:#3B82F6;
+      --radius-lg:28px;--radius-md:18px;--radius-sm:12px;
+      --shadow-card:0 20px 40px -12px rgba(0,32,16,0.08);
+      --shadow-hover:0 24px 48px -16px rgba(0,48,24,0.14);
+      --transition:0.25s cubic-bezier(0.25,0.46,0.45,0.94);
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:#0B1E18;padding:16px;min-height:100vh;display:flex;justify-content:center;-webkit-font-smoothing:antialiased}
+    .dashboard{max-width:1440px;width:100%}
+    .glass{background:rgba(255,255,255,0.6);backdrop-filter:blur(16px) saturate(180%);-webkit-backdrop-filter:blur(16px) saturate(180%);border:1px solid rgba(255,255,255,0.4);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);transition:box-shadow var(--transition),transform var(--transition)}
+    .glass:hover{box-shadow:var(--shadow-hover)}
+    .text-muted{color:#5A6F66;font-size:0.85rem}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 16px;border-radius:100px;font-size:0.7rem;font-weight:600;letter-spacing:0.3px;text-transform:capitalize;background:var(--border);color:#1A3A2E}
+    .badge-success{background:#DCFCE7;color:#166534}
+    .badge-warning{background:#FEF3C7;color:#92400E}
+    .badge-danger{background:#FEE2E2;color:#991B1B}
+    .badge-info{background:#DBEAFE;color:#1E40AF}
+    .navbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;margin-bottom:28px;background:rgba(255,255,255,0.5);backdrop-filter:blur(16px) saturate(180%);-webkit-backdrop-filter:blur(16px) saturate(180%);border:1px solid rgba(255,255,255,0.4);border-radius:80px;box-shadow:0 8px 24px rgba(0,32,16,0.04);position:sticky;top:12px;z-index:100;flex-wrap:wrap;gap:12px}
+    .navbar .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.2rem;color:var(--primary);letter-spacing:-0.5px}
+    .navbar .logo i{font-size:1.4rem;background:var(--primary);color:white;padding:8px;border-radius:14px}
+    .navbar-right{display:flex;align-items:center;gap:14px}
+    .navbar-right .icon-btn{background:transparent;border:none;font-size:1.1rem;color:#3A5A4E;cursor:pointer;transition:color var(--transition),transform var(--transition)}
+    .navbar-right .icon-btn:hover{color:var(--primary);transform:scale(1.05)}
+    .navbar-right .avatar{width:40px;height:40px;border-radius:60px;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:0.95rem;cursor:pointer;transition:transform var(--transition)}
+    .navbar-right .avatar:hover{transform:scale(1.05)}
+    .hero{background:linear-gradient(135deg,#0B3D2E 0%,#134F33 50%,#1C7A4D 100%);border-radius:var(--radius-lg);padding:36px 40px;margin-bottom:32px;color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;position:relative;overflow:hidden}
+    .hero::after{content:"\f0f1";font-family:"Font Awesome 6 Free";font-weight:900;position:absolute;right:10px;bottom:-10px;font-size:8rem;opacity:0.06;pointer-events:none}
+    .hero h1{font-size:2rem;font-weight:700;letter-spacing:-0.5px;margin-bottom:4px}
+    .hero p{font-size:0.95rem;opacity:0.8}
+    .hero .hero-stats{display:flex;gap:24px;flex-wrap:wrap}
+    .hero .hero-stat{background:rgba(255,255,255,0.1);backdrop-filter:blur(4px);padding:10px 20px;border-radius:60px;border:1px solid rgba(255,255,255,0.08);font-size:0.85rem;display:flex;align-items:center;gap:10px}
+    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:18px;margin-bottom:32px}
+    .kpi-card{background:var(--white);border-radius:var(--radius-md);padding:18px 20px 14px;border:1px solid var(--border);transition:all var(--transition);cursor:default}
+    .kpi-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-hover)}
+    .kpi-card .icon-wrap{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;background:var(--light-green);color:var(--primary);font-size:1rem;margin-bottom:10px}
+    .kpi-card .kpi-label{font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;color:#5A6F66;margin-bottom:2px}
+    .kpi-card .kpi-value{font-size:1.6rem;font-weight:700;color:#0B1E18;letter-spacing:-0.5px}
+    .kpi-card .kpi-sub{font-size:0.7rem;color:#5A6F66}
+    .section-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+    .section-header h3{font-weight:600;color:#0B1E18;font-size:1.1rem;display:flex;align-items:center;gap:10px}
+    .appt-timeline{display:flex;flex-direction:column;gap:10px}
+    .appt-item{display:flex;align-items:center;gap:16px;padding:14px 18px;background:rgba(255,255,255,0.5);backdrop-filter:blur(4px);border-radius:60px;border-left:4px solid var(--success);transition:all var(--transition);animation:slideIn 0.3s ease both}
+    .appt-item.pending{border-left-color:var(--warning)}
+    .appt-item .appt-info{flex:1}
+    .appt-item .appt-info h5{font-weight:600;font-size:0.95rem}
+    .appt-item .appt-info .meta{font-size:0.8rem;color:#5A6F66}
+    .appt-item .appt-actions{display:flex;gap:8px}
+    .appt-item .appt-actions button{background:transparent;border:none;cursor:pointer;color:#5A6F66;transition:color var(--transition);font-size:0.9rem;padding:4px 6px}
+    .appt-item .appt-actions button:hover{color:var(--primary)}
+    .appt-item .appt-actions button.danger:hover{color:var(--danger)}
+    @keyframes slideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+    .two-col{display:grid;grid-template-columns:1.2fr 0.8fr;gap:28px;margin-bottom:32px}
+    @media(max-width:900px){.two-col{grid-template-columns:1fr}}
+    .doctor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:10px}
+    .doctor-card{background:white;border-radius:var(--radius-md);padding:14px;border:1px solid var(--border);transition:all var(--transition);cursor:pointer}
+    .doctor-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-hover)}
+    .doctor-card.selected{border-color:var(--primary);background:var(--light-green)}
+    .doctor-card .doc-avatar{width:44px;height:44px;border-radius:60px;background:var(--light-green);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;margin-bottom:8px}
+    .doctor-card h5{font-weight:600;font-size:0.85rem}
+    .doctor-card .specialty{font-size:0.75rem;color:#5A6F66}
+    .slot-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .slot-btn{padding:7px 16px;border-radius:60px;border:1px solid var(--border);background:white;font-size:0.78rem;cursor:pointer;transition:all var(--transition);font-weight:500}
+    .slot-btn:hover{background:var(--primary);color:white;border-color:var(--primary)}
+    .slot-btn.selected{background:var(--primary);color:white;border-color:var(--primary)}
+    .slot-btn.booked{opacity:0.35;cursor:not-allowed;background:#f0f0f0}
+    .table-wrap{overflow-x:auto;border-radius:var(--radius-md);background:rgba(255,255,255,0.4);backdrop-filter:blur(4px);padding:4px 0 4px 4px}
+    table{width:100%;border-collapse:collapse;font-size:0.85rem}
+    th{text-align:left;padding:12px 12px;background:rgba(255,255,255,0.5);backdrop-filter:blur(4px);position:sticky;top:0;z-index:10;font-weight:600;color:var(--primary);border-bottom:1px solid var(--border);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px}
+    td{padding:10px 12px;border-bottom:1px solid rgba(0,0,0,0.02);vertical-align:middle}
+    tr:hover td{background:rgba(19,79,51,0.02)}
+    .prescription-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:12px}
+    .rx-card{background:white;border-radius:var(--radius-md);padding:16px 18px;border:1px solid var(--border);transition:all var(--transition)}
+    .rx-card:hover{box-shadow:var(--shadow-hover)}
+    .rx-card h5{font-weight:600;color:var(--primary)}
+    .rx-card .rx-meta{font-size:0.8rem;color:#5A6F66;margin:4px 0}
+    .rx-card .rx-actions{display:flex;gap:10px;margin-top:10px}
+    .rx-card .rx-actions button{background:transparent;border:none;color:var(--primary);font-size:0.8rem;cursor:pointer;font-weight:500;padding:4px 10px;border-radius:60px;transition:background var(--transition)}
+    .rx-card .rx-actions button:hover{background:var(--light-green)}
+    .btn-primary{background:var(--primary);border:none;color:white;padding:10px 24px;border-radius:60px;font-weight:600;font-size:0.85rem;cursor:pointer;transition:all var(--transition);display:inline-flex;align-items:center;gap:8px;font-family:inherit}
+    .btn-primary:hover{background:var(--secondary);transform:scale(0.98);box-shadow:0 8px 20px rgba(19,79,51,0.2)}
+    .btn-primary:disabled{opacity:0.6;cursor:not-allowed;transform:none}
+    .btn-outline{background:transparent;border:1px solid var(--border);color:#1A3A2E;padding:8px 18px;border-radius:60px;font-weight:500;cursor:pointer;transition:all var(--transition);font-family:inherit;font-size:0.8rem}
+    .btn-outline:hover{border-color:var(--primary);background:var(--light-green)}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,24,12,0.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;opacity:0;visibility:hidden;transition:opacity 0.25s ease,visibility 0.25s ease}
+    .modal-overlay.active{opacity:1;visibility:visible}
+    .modal-box{background:white;max-width:520px;width:100%;border-radius:var(--radius-lg);padding:28px 24px;box-shadow:0 40px 80px rgba(0,20,10,0.2);transform:scale(0.96) translateY(12px);transition:transform 0.3s ease,opacity 0.3s ease;opacity:0}
+    .modal-overlay.active .modal-box{transform:scale(1) translateY(0);opacity:1}
+    .modal-box h3{color:#0B1E18;margin-bottom:18px;font-size:1.2rem;display:flex;align-items:center;gap:10px}
+    .modal-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+    .modal-row:last-child{border-bottom:none}
+    .modal-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end;flex-wrap:wrap}
+    .toast-container{position:fixed;bottom:30px;right:30px;display:flex;flex-direction:column;gap:10px;z-index:9999}
+    .toast{padding:12px 22px;border-radius:60px;background:white;box-shadow:0 12px 32px rgba(0,0,0,0.1);backdrop-filter:blur(8px);font-weight:500;font-size:0.85rem;display:flex;align-items:center;gap:10px;animation:toastIn 0.4s ease both;border-left:4px solid var(--primary)}
+    .toast.success{border-left-color:var(--success)}
+    .toast.error{border-left-color:var(--danger)}
+    .toast.warning{border-left-color:var(--warning)}
+    .toast.info{border-left-color:var(--info)}
+    @keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+    .empty-state{text-align:center;padding:30px 20px;color:#5A6F66}
+    .empty-state i{font-size:2rem;margin-bottom:10px;opacity:0.4;display:block}
+    select{width:100%;padding:10px 14px;border-radius:60px;border:1px solid var(--border);font-family:inherit;background:white;outline:none;margin-top:4px;font-size:0.85rem}
+    select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(19,79,51,0.06)}
+    input[type=date]{width:100%;padding:10px 14px;border-radius:60px;border:1px solid var(--border);font-family:inherit;background:white;outline:none;margin-top:4px;font-size:0.85rem}
+    input[type=date]:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(19,79,51,0.06)}
+    @media(max-width:768px){
+      body{padding:10px}
+      .navbar{padding:10px 16px;border-radius:40px;top:8px}
+      .navbar .logo{font-size:1rem}
+      .hero{padding:24px 20px}
+      .hero h1{font-size:1.4rem}
+      .hero .hero-stats{gap:10px}
+      .hero .hero-stat{font-size:0.7rem;padding:6px 14px}
+      .kpi-grid{grid-template-columns:1fr 1fr;gap:12px}
+      .kpi-card .kpi-value{font-size:1.3rem}
+      .doctor-grid{grid-template-columns:1fr 1fr}
+      .prescription-grid{grid-template-columns:1fr}
+      .appt-item{flex-wrap:wrap;border-radius:var(--radius-md);padding:14px}
+      .appt-item .appt-actions{width:100%;justify-content:flex-end}
+      .modal-box{padding:20px 16px;margin:10px}
+      .toast-container{bottom:12px;right:12px;left:12px}
+    }
+    @media(max-width:480px){
+      .kpi-grid{grid-template-columns:1fr 1fr;gap:8px}
+      .doctor-grid{grid-template-columns:1fr}
+      .hero h1{font-size:1.2rem}
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard" id="app">
+
+    <nav class="navbar">
+      <div class="logo">
+        <img src="logo_navbar.png" alt="MedNex" style="height:36px;object-fit:contain;border-radius:8px;" />
+      </div>
+      <div class="navbar-right">
+        <div class="avatar" id="patientAvatar">P</div>
+        <button class="icon-btn" onclick="logout()" title="Déconnexion"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div>
+        <h1 id="heroName">Bonjour 👋</h1>
+        <p>Bienvenue sur votre espace patient MedNex</p>
+      </div>
+      <div class="hero-stats">
+        <span class="hero-stat" id="heroNextAppt"><i class="fas fa-calendar-check"></i> Chargement…</span>
+        <span class="hero-stat"><i class="fas fa-heart"></i> Santé: Bonne</span>
+      </div>
+    </section>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="icon-wrap"><i class="fas fa-calendar-alt"></i></div><div class="kpi-label">Rendez-vous</div><div class="kpi-value" id="kpiAppts">–</div><div class="kpi-sub">À venir</div></div>
+      <div class="kpi-card"><div class="icon-wrap"><i class="fas fa-file-medical"></i></div><div class="kpi-label">Dossiers</div><div class="kpi-value" id="kpiRecords">–</div><div class="kpi-sub">Médicaux</div></div>
+      <div class="kpi-card"><div class="icon-wrap"><i class="fas fa-prescription-bottle"></i></div><div class="kpi-label">Ordonnances</div><div class="kpi-value" id="kpiRx">–</div><div class="kpi-sub">Actives</div></div>
+      <div class="kpi-card"><div class="icon-wrap"><i class="fas fa-user-md"></i></div><div class="kpi-label">Médecins</div><div class="kpi-value" id="kpiDoctors">–</div><div class="kpi-sub">Disponibles</div></div>
+    </div>
+
+    <div class="two-col">
+      <div class="glass" style="padding:22px;">
+        <div class="section-header">
+          <h3><i class="fas fa-clock" style="color:var(--primary);"></i> Prochains Rendez-vous</h3>
+        </div>
+        <div class="appt-timeline" id="apptTimeline">
+          <div class="empty-state"><i class="fas fa-spinner fa-spin"></i> Chargement…</div>
+        </div>
+      </div>
+
+      <div class="glass" style="padding:22px;">
+        <h3 style="font-weight:600;color:#0B1E18;margin-bottom:14px;"><i class="fas fa-plus-circle" style="color:var(--primary);"></i> Prendre un Rendez-vous</h3>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <label style="font-weight:500;font-size:0.8rem;color:#5A6F66;">Spécialité</label>
+            <select id="specialtySelect" onchange="loadDoctors()">
+              <option value="">Toutes les spécialités</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-weight:500;font-size:0.8rem;color:#5A6F66;">Choisir un médecin</label>
+            <div class="doctor-grid" id="doctorGrid"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div></div>
+          </div>
+          <div>
+            <label style="font-weight:500;font-size:0.8rem;color:#5A6F66;">Date</label>
+            <input type="date" id="bookingDate" onchange="loadSlots()" />
+          </div>
+          <div>
+            <label style="font-weight:500;font-size:0.8rem;color:#5A6F66;">Créneau disponible</label>
+            <div class="slot-grid" id="slotGrid"><div style="font-size:0.8rem;color:#5A6F66;padding:8px;">Sélectionnez un médecin et une date</div></div>
+          </div>
+          <button class="btn-primary" id="bookBtn" onclick="confirmBooking()"><i class="fas fa-check"></i> Confirmer le Rendez-vous</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass" style="padding:22px;margin-bottom:32px;">
+      <div class="section-header">
+        <h3><i class="fas fa-folder-medical" style="color:var(--primary);"></i> Dossiers Médicaux</h3>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Médecin</th><th>Spécialité</th><th>Diagnostic</th><th>Statut</th></tr></thead>
+          <tbody id="recordsTableBody"><tr><td colspan="5" style="text-align:center;padding:20px;color:#5A6F66;"><i class="fas fa-spinner fa-spin"></i> Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="glass" style="padding:22px;margin-bottom:32px;">
+      <div class="section-header">
+        <h3><i class="fas fa-prescription" style="color:var(--primary);"></i> Ordonnances Actives</h3>
+      </div>
+      <div class="prescription-grid" id="rxGrid">
+        <div class="empty-state"><i class="fas fa-spinner fa-spin"></i> Chargement…</div>
+      </div>
+    </div>
+
+    <!-- Modal: Appointment Details -->
+    <div class="modal-overlay" id="apptModal">
+      <div class="modal-box">
+        <h3><i class="fas fa-calendar-check" style="color:var(--primary);"></i> Détails du Rendez-vous</h3>
+        <div id="apptModalContent"></div>
+        <div class="modal-actions">
+          <button class="btn-outline" onclick="closeModal('apptModal')">Fermer</button>
+          <button class="btn-outline" id="cancelApptBtn"><i class="fas fa-times"></i> Annuler le RDV</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+  </div>
+
+  <script>
+  // ================================================================
+  //  MEDNEX PATIENT DASHBOARD — SUPABASE BACKEND
+  // ================================================================
+  const SUPABASE_URL = 'https://xisdwbyermvbqjuqjagn.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc2R3Ynllcm12YnFqdXFqYWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzUyOTksImV4cCI6MjA5ODExMTI5OX0.Ixz6hlLsOUkH04uNivcH81P4-MWeIc_pJZTwnAfm57I';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Guard: hide content until auth confirmed
+  document.getElementById('app').style.visibility = 'hidden';
+
+  let patientId;
+  const $ = id => document.getElementById(id);
+
+  // ── HTML escape helper (prevents XSS) ────────────────────────
+  function esc(v) {
+    return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  (async function guardAuth() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'patient-login.html'; return; }
+
+    const { data: patient } = await sb
+      .from('patients')
+      .select('id, full_name')
+      .eq('auth_user_id', session.user.id)
+      .single();
+
+    if (!patient) {
+      await sb.auth.signOut();
+      window.location.href = 'patient-login.html';
+      return;
+    }
+
+    patientId = patient.id;
+    document.getElementById('app').style.visibility = 'visible';
+    bootApp();
+  })();
+
+  function bootApp() {
+
+
+  let selectedDoctorId = null;
+  let selectedDoctorAvailId = null;
+  let selectedSlot = null;
+  let upcomingAppointments = [];
+
+  // ── Toast ─────────────────────────────────────────────────────
+  function showToast(type, message) {
+    const icons = {success:'fa-check-circle',error:'fa-times-circle',warning:'fa-exclamation-triangle',info:'fa-info-circle'};
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.innerHTML = `<i class="fas ${icons[type]||'fa-bell'}"></i> ${message}`;
+    $('toastContainer').appendChild(t);
+    setTimeout(() => { t.style.opacity='0'; t.style.transform='translateX(30px)'; setTimeout(()=>t.remove(),300); }, 3500);
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────
+  function closeModal(id) { $(id).classList.remove('active'); }
+  document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', e => { if(e.target===el) closeModal(el.id); });
+  });
+
+  // ── Logout ────────────────────────────────────────────────────
+  async function logout() {
+  await sb.auth.signOut();
+  localStorage.clear();
+  window.location.href = 'patient-login.html';
+}
+
+  // ── Animated counter ─────────────────────────────────────────
+  function animateCount(el, target) {
+    let cur = 0;
+    const step = Math.max(1, Math.floor(target/35));
+    const iv = setInterval(() => {
+      cur += step;
+      if (cur >= target) { cur = target; clearInterval(iv); }
+      el.textContent = cur;
+    }, 20);
+  }
+
+  // ── Load patient info ─────────────────────────────────────────
+  async function loadPatientInfo() {
+    const { data } = await sb.from('patients').select('full_name').eq('id', patientId).single();
+    if (data) {
+      const name = data.full_name;
+      $('heroName').textContent = `Bonjour ${name} 👋`;
+      $('patientAvatar').textContent = name.charAt(0).toUpperCase();
+    }
+  }
+
+  // ── Upcoming appointments ─────────────────────────────────────
+  async function loadAppointments() {
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await sb.from('appointment_details').select('*').eq('patient_id', patientId).gte('date', today).order('date').order('start_time');
+
+    upcomingAppointments = data || [];
+    animateCount($('kpiAppts'), upcomingAppointments.length);
+
+    // Hero next appt
+    if (upcomingAppointments.length > 0) {
+      const next = upcomingAppointments[0];
+      $('heroNextAppt').innerHTML = `<i class="fas fa-calendar-check"></i> Prochain RDV: ${next.date}`;
+    } else {
+      $('heroNextAppt').innerHTML = `<i class="fas fa-calendar-check"></i> Aucun RDV à venir`;
+    }
+
+    if (!upcomingAppointments.length) {
+      $('apptTimeline').innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i>Aucun rendez-vous à venir</div>';
+      return;
+    }
+
+    const statusMap = {confirmed:'badge-success',pending:'badge-warning',completed:'badge-info',cancelled:'badge-danger'};
+    $('apptTimeline').innerHTML = upcomingAppointments.map((a, idx) => {
+      const daysUntil = Math.ceil((new Date(a.date) - new Date()) / (1000*60*60*24));
+      const countdown = daysUntil <= 0 ? "Aujourd'hui" : daysUntil === 1 ? 'Demain' : `Dans ${daysUntil} jours`;
+      return `<div class="appt-item ${a.status==='pending'?'pending':''}" style="animation-delay:${idx*0.06}s">
+        <div class="appt-info">
+          <h5>${esc(a.doctor_name)}</h5>
+          <div class="meta">${esc(a.doctor_specialty)} · ${esc(a.date)} · ${esc(a.start_time?.slice(0,5))} – ${esc(a.end_time?.slice(0,5))}</div>
+          <div class="meta" style="font-weight:500;color:var(--primary);">${esc(countdown)}</div>
+        </div>
+        <span class="badge ${statusMap[a.status]||'badge'}">${esc(a.status)}</span>
+        <div class="appt-actions">
+          <button onclick="openApptModal('${esc(a.id)}')" title="Voir"><i class="fas fa-eye"></i></button>
+          <button class="danger" onclick="cancelAppt('${esc(a.id)}')" title="Annuler"><i class="fas fa-times"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Open appointment modal ────────────────────────────────────
+  function openApptModal(apptId) {
+    const a = upcomingAppointments.find(x => x.id === apptId);
+    if (!a) return;
+    const statusMap = {confirmed:'badge-success',pending:'badge-warning',completed:'badge-info',cancelled:'badge-danger'};
+    $('apptModalContent').innerHTML = `
+      <div class="modal-row"><span>Médecin</span><strong>${esc(a.doctor_name)}</strong></div>
+      <div class="modal-row"><span>Spécialité</span><span>${esc(a.doctor_specialty)}</span></div>
+      <div class="modal-row"><span>Cabinet</span><span>${esc(a.clinic_address||'–')}</span></div>
+      <div class="modal-row"><span>Date</span><span>${esc(a.date)}</span></div>
+      <div class="modal-row"><span>Heure</span><span>${esc(a.start_time?.slice(0,5))} – ${esc(a.end_time?.slice(0,5))}</span></div>
+      <div class="modal-row"><span>N° de passage</span><span>#${esc(String(a.slot_number||'?'))}</span></div>
+      <div class="modal-row"><span>Statut</span><span class="badge ${statusMap[a.status]||'badge'}">${esc(a.status)}</span></div>
+      ${a.notes?`<div class="modal-row"><span>Notes</span><span>${esc(a.notes)}</span></div>`:''}`;
+
+    $('cancelApptBtn').onclick = () => cancelAppt(a.id);
+    if (a.status === 'cancelled') $('cancelApptBtn').style.display = 'none';
+    else $('cancelApptBtn').style.display = 'inline-flex';
+
+    $('apptModal').classList.add('active');
+  }
+
+  async function cancelAppt(apptId) {
+    if (!confirm('Annuler ce rendez-vous ?')) return;
+    const { error } = await sb.from('appointments').update({ status: 'cancelled' }).eq('id', apptId).eq('patient_id', patientId);
+    if (error) { showToast('error', error.message); return; }
+    showToast('warning', 'Rendez-vous annulé');
+    closeModal('apptModal');
+    await loadAppointments();
+  }
+
+  // ── Medical records ───────────────────────────────────────────
+  async function loadRecords() {
+    const { data } = await sb.from('medical_records').select('*,doctors(full_name,specialty)').eq('patient_id', patientId).order('record_date', {ascending:false});
+
+    animateCount($('kpiRecords'), data?.length || 0);
+
+    if (!data?.length) {
+      $('recordsTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#5A6F66;">Aucun dossier médical</td></tr>';
+      return;
+    }
+    $('recordsTableBody').innerHTML = data.map(r => `
+      <tr>
+        <td>${esc(r.record_date)}</td>
+        <td><strong>${esc(r.doctors?.full_name||'–')}</strong></td>
+        <td>${esc(r.doctors?.specialty||r.specialty||'–')}</td>
+        <td>${esc(r.diagnosis)}</td>
+        <td><span class="badge badge-success">${esc(r.status)}</span></td>
+      </tr>`).join('');
+  }
+
+  // ── Prescriptions ─────────────────────────────────────────────
+  async function loadPrescriptions() {
+  window.__rxStore = {};
+
+  const { data } = await sb
+    .from('prescriptions')
+    .select('*, doctors(full_name, specialty)')
+    .eq('patient_id', patientId)
+    .eq('is_active', true)
+    .order('prescribed_at', { ascending: false });
+
+  const grouped = {};
+  (data || []).forEach(rx => {
+    const key = `${rx.appointment_id || rx.doctor_id}_${rx.prescribed_at}`;
+    if (!grouped[key]) {
+      grouped[key] = {
+        doctor_name: rx.doctors?.full_name || '–',
+        doctor_specialty: rx.doctors?.specialty || '–',
+        prescribed_at: rx.prescribed_at,
+        diagnosis: extractFieldFromInstructions(rx.instructions, 'Diagnostic'),
+        recommendations: extractFieldFromInstructions(rx.instructions, 'Recommandations'),
+        clinical_notes: extractFieldFromInstructions(rx.instructions, 'Notes'),
+        medications: []
+      };
+    }
+    grouped[key].medications.push({
+      name: rx.medication,
+      duration: rx.duration,
+      dosage: extractFieldFromInstructions(rx.instructions, 'Dosage'),
+      frequency: extractFieldFromInstructions(rx.instructions, 'Fréquence'),
+      instructions: extractRawInstructions(rx.instructions)
+    });
+  });
+
+  const sessions = Object.values(grouped);
+  animateCount($('kpiRx'), sessions.length);
+
+  if (!sessions.length) {
+    $('rxGrid').innerHTML = '<div class="empty-state"><i class="fas fa-prescription-bottle"></i>Aucune ordonnance active</div>';
+    return;
+  }
+
+  $('rxGrid').innerHTML = sessions.map((s, i) => {
+    const rxId = 'rx_' + i + '_' + Date.now();
+    window.__rxStore[rxId] = s;  // ✅ data stored safely in JS
+
+    return `
+      <div class="rx-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+          <h5 style="font-size:0.95rem;">${esc(s.diagnosis || 'Ordonnance médicale')}</h5>
+          <span class="badge badge-success" style="white-space:nowrap;">Active</span>
+        </div>
+        <div class="rx-meta"><i class="fas fa-user-md"></i> Dr. ${esc(s.doctor_name)} · ${esc(s.doctor_specialty)}</div>
+        <div class="rx-meta"><i class="fas fa-calendar-alt"></i> ${esc(s.prescribed_at)}</div>
+        <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;">
+          ${s.medications.map(m => `
+            <div style="display:flex;align-items:baseline;gap:6px;padding:4px 0;border-bottom:1px dashed #f0f4f2;">
+              <i class="fas fa-pills" style="color:var(--primary);font-size:0.7rem;flex-shrink:0;margin-top:2px;"></i>
+              <div>
+                <strong style="font-size:0.82rem;">${esc(m.name)}</strong>
+                ${m.dosage ? `<span style="color:#5A6F66;font-size:0.75rem;"> · ${esc(m.dosage)}</span>` : ''}
+                ${m.frequency ? `<span style="color:#5A6F66;font-size:0.75rem;"> · ${esc(m.frequency)}</span>` : ''}
+                ${m.duration ? `<div style="font-size:0.72rem;color:#5A6F66;margin-left:4px;"><i class="fas fa-clock"></i> ${esc(m.duration)}</div>` : ''}
+                ${m.instructions ? `<div style="font-size:0.72rem;color:#5A6F66;margin-left:4px;">${esc(m.instructions)}</div>` : ''}
+              </div>
+            </div>`).join('')}
+        </div>
+        ${s.recommendations ? `<div class="rx-meta" style="margin-top:8px;font-style:italic;"><i class="fas fa-lightbulb"></i> ${esc(s.recommendations)}</div>` : ''}
+        <div class="rx-actions">
+          <button onclick="downloadPrescriptionPDF(window.__rxStore['${rxId}'])">
+            <i class="fas fa-download"></i> PDF
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+}
+  // Parse encoded instructions field
+  function extractFieldFromInstructions(instructions, field) {
+    if (!instructions) return '';
+    const match = instructions.match(new RegExp(field + ':\\s*([^|]+)'));
+    return match ? match[1].trim() : '';
+  }
+
+  function extractRawInstructions(instructions) {
+    if (!instructions) return '';
+    // Return the plain part before any "Dosage:" / "Diagnostic:" etc.
+    const plain = instructions.split('|').filter(part => {
+      const p = part.trim();
+      return p && !p.match(/^(Dosage|Fréquence|Diagnostic|Notes|Recommandations):/);
+    }).join(', ').trim();
+    return plain || '';
+  }
+
+  // ── Download Prescription PDF (using Python Server) ─────────────
+  async function downloadPrescriptionPDF(prescription) {
+    try {
+      showToast('info', 'Génération du PDF en cours...');
+
+      // Get patient name
+      const { data: patientData } = await sb.from('patients').select('full_name').eq('id', patientId).single();
+      const patientName = patientData?.full_name || 'Patient';
+      
+      // Format medications - ensure proper structure
+      const medications = prescription.medications.map(m => ({
+        name: (m.name || 'Médicament').trim(),
+        dosage: (m.dosage || '–').trim(),
+        frequency: (m.frequency || '–').trim()
+      })).filter(m => m.name !== '' && m.name !== 'Médicament');
+
+      // Prepare prescription data with all available info
+      const prescriptionData = {
+        patient_name: patientName.trim(),
+        age_gender: '–',
+        date: (prescription.prescribed_at || new Date().toISOString().split('T')[0]).trim(),
+        diagnosis: (prescription.diagnosis || '').trim(),
+        clinical_notes: (prescription.clinical_notes || '').trim(),
+        recommendations: (prescription.recommendations || '').trim(),
+        medications: medications.length > 0 ? medications : [],
+        doctor_name: (prescription.doctor_name || 'Médecin').trim()
+      };
+
+      console.log('📋 Sending to PDF Server:', prescriptionData);
+
+      // Send to Python server
+      const response = await fetch('http://localhost:5000/generate-pdf', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-PDF-Secret': 'mednex-pdf-secret-2024-xK9#mP2$'
+  },
+  body: JSON.stringify(prescriptionData)
+});
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        showToast('error', `Erreur: ${errorData.error || 'Impossible de générer le PDF'}`);
+        return;
+      }
+
+      // Get the PDF as a blob and download it
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const date = prescription.prescribed_at || new Date().toISOString().split('T')[0];
+      link.download = `ordonnance_${patientName}_${date}.pdf`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      showToast('success', 'PDF généré et téléchargé');
+    } catch (error) {
+      console.error('PDF download error:', error);
+      if (error.message.includes('Failed to fetch')) {
+        showToast('error', 'Serveur PDF non disponible. Assurez-vous que start_pdf_server.bat est en cours d\'exécution');
+      } else {
+        showToast('error', `Erreur: ${error.message}`);
+      }
+    }
+  }
+
+  // ── Doctors for booking ───────────────────────────────────────
+  async function loadDoctors() {
+    const specialty = $('specialtySelect').value;
+    selectedDoctorId = null;
+    selectedDoctorAvailId = null;
+    selectedSlot = null;
+    $('slotGrid').innerHTML = '<div style="font-size:0.8rem;color:#5A6F66;padding:8px;">Sélectionnez un médecin et une date</div>';
+
+    let query = sb.from('doctors').select('id,full_name,specialty,city').eq('status','approved').order('full_name');
+    if (specialty) query = query.eq('specialty', specialty);
+
+    const { data } = await query;
+    animateCount($('kpiDoctors'), data?.length || 0);
+
+    if (!data?.length) {
+      $('doctorGrid').innerHTML = '<div class="empty-state"><i class="fas fa-user-md"></i>Aucun médecin disponible</div>';
+      return;
+    }
+    $('doctorGrid').innerHTML = data.map(d => `
+      <div class="doctor-card" id="doc-${d.id}" onclick="selectDoctor('${d.id}','${d.full_name.replace(/'/g,"\\'")}')">
+        <div class="doc-avatar">${d.full_name.charAt(0)}</div>
+        <h5>${d.full_name}</h5>
+        <div class="specialty">${d.specialty}</div>
+        ${d.city?`<div class="specialty" style="margin-top:2px;"><i class="fas fa-map-marker-alt"></i> ${d.city}</div>`:''}
+      </div>`).join('');
+  }
+
+  function selectDoctor(docId, docName) {
+    selectedDoctorId = docId;
+    selectedDoctorAvailId = null;
+    selectedSlot = null;
+    document.querySelectorAll('.doctor-card').forEach(c => c.classList.remove('selected'));
+    $(`doc-${docId}`)?.classList.add('selected');
+    showToast('info', `${docName} sélectionné`);
+    loadSlots();
+  }
+
+  async function loadSlots() {
+    if (!selectedDoctorId) { $('slotGrid').innerHTML = '<div style="font-size:0.8rem;color:#5A6F66;padding:8px;">Sélectionnez un médecin d\'abord</div>'; return; }
+    const date = $('bookingDate').value;
+    if (!date) { $('slotGrid').innerHTML = '<div style="font-size:0.8rem;color:#5A6F66;padding:8px;">Sélectionnez une date</div>'; return; }
+
+    $('slotGrid').innerHTML = '<div style="font-size:0.8rem;color:#5A6F66;padding:8px;"><i class="fas fa-spinner fa-spin"></i> Chargement…</div>';
+
+    const { data: avails } = await sb.from('availabilities').select('*').eq('doctor_id', selectedDoctorId).eq('date', date).order('start_time');
+    if (!avails?.length) {
+      $('slotGrid').innerHTML = '<div style="font-size:0.8rem;color:#5A6F66;padding:8px;">Aucune disponibilité ce jour</div>';
+      return;
+    }
+
+    const { data: booked } = await sb.from('appointments').select('start_time').eq('doctor_id', selectedDoctorId).eq('date', date).not('status','eq','cancelled');
+    const bookedTimes = new Set((booked||[]).map(b => b.start_time?.slice(0,5)));
+
+    selectedDoctorAvailId = avails[0].id;
+    const slots = [];
+    avails.forEach(av => {
+      let [h,m] = av.start_time.split(':').map(Number);
+      const [eh,em] = av.end_time.split(':').map(Number);
+      while (h*60+m < eh*60+em) {
+        const t = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        slots.push({ time: t, booked: bookedTimes.has(t) });
+        m+=15; if(m>=60){h++;m-=60;}
+      }
+    });
+
+    if (!slots.length) { $('slotGrid').innerHTML = '<div style="font-size:0.8rem;color:#5A6F66;padding:8px;">Aucun créneau disponible</div>'; return; }
+
+    $('slotGrid').innerHTML = slots.map(s =>
+      `<button class="slot-btn${s.booked?' booked':''}" ${s.booked?'disabled':''} onclick="selectSlot('${s.time}',this)">${s.time}</button>`
+    ).join('');
+  }
+
+  function selectSlot(time, el) {
+    selectedSlot = time;
+    document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  async function confirmBooking() {
+    if (!selectedDoctorId) { showToast('error', 'Sélectionnez un médecin'); return; }
+    const date = $('bookingDate').value;
+    if (!date) { showToast('error', 'Sélectionnez une date'); return; }
+    if (!selectedSlot) { showToast('error', 'Sélectionnez un créneau'); return; }
+
+    // Refresh session token so RLS sees auth.uid() correctly
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'patient-login.html'; return; }
+    await sb.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+    const currentPatientId = patientId; // already verified at page load
+
+    const [h,m] = selectedSlot.split(':').map(Number);
+    const em = m+15 >= 60 ? m-45 : m+15;
+    const eh = m+15 >= 60 ? h+1 : h;
+    const endTime = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}:00`;
+
+    const { data: lastSlot } = await sb.from('appointments').select('slot_number').eq('doctor_id', selectedDoctorId).eq('date', date).order('slot_number',{ascending:false}).limit(1).maybeSingle();
+    const slotNumber = (lastSlot?.slot_number || 0) + 1;
+
+    const btn = $('bookBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Réservation…';
+
+    const { error } = await sb.from('appointments').insert([{
+      patient_id:      currentPatientId,
+      doctor_id:       selectedDoctorId,
+      availability_id: selectedDoctorAvailId,
+      date,
+      start_time:      selectedSlot + ':00',
+      end_time:        endTime,
+      status:          'pending',
+      slot_number:     slotNumber
+    }]);
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check"></i> Confirmer le Rendez-vous';
+
+    if (error) {
+      if (error.code === '23505') showToast('error', 'Ce créneau est déjà pris, choisissez-en un autre');
+      else showToast('error', error.message);
+      return;
+    }
+    showToast('success', `Rendez-vous le ${date} à ${selectedSlot} confirmé !`);
+    selectedSlot = null;
+    document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+    await loadAppointments();
+    await loadSlots();
+  }
+
+  // ── Specialties dropdown ──────────────────────────────────────
+  async function loadSpecialties() {
+    const { data } = await sb.from('doctors').select('specialty').eq('status','approved');
+    const specialties = [...new Set((data||[]).map(d=>d.specialty))].filter(Boolean).sort();
+    const sel = $('specialtySelect');
+    sel.innerHTML = '<option value="">Toutes les spécialités</option>';
+    specialties.forEach(s => { const o = document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o); });
+  }
+
+  // ── Auto-refresh (data only, no page reload) ────────────────
+  function startAutoRefresh() {
+    setInterval(async () => {
+      await loadAppointments();
+      await loadRecords();
+      await loadPrescriptions();
+      // Do not reload doctors/slots automatically to preserve user selection
+    }, 5000); // refresh every 5 seconds
+  }
+
+  // ── Init ──────────────────────────────────────────────────────
+  (async function init() {
+    $('bookingDate').value = new Date().toISOString().split('T')[0];
+    await loadPatientInfo();
+    await Promise.all([loadAppointments(), loadRecords(), loadPrescriptions(), loadSpecialties()]);
+    await loadDoctors();
+    startAutoRefresh(); // start the auto-refresh cycle
+  })();
+
+  // Expose globals — inside bootApp() so functions exist when assigned
+  window.logout                  = logout;
+  window.openApptModal           = openApptModal;
+  window.cancelAppt              = cancelAppt;
+  window.closeModal              = closeModal;
+  window.loadDoctors             = loadDoctors;
+  window.loadSlots               = loadSlots;
+  window.selectDoctor            = selectDoctor;
+  window.selectSlot              = selectSlot;
+  window.confirmBooking          = confirmBooking;
+  window.showToast               = showToast;
+  window.downloadPrescriptionPDF = downloadPrescriptionPDF;
+
+  } // end bootApp()
+  </script>
+</body>
+</html>

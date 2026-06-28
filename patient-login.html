@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Connexion Patient - MedNex</title>
+<link rel="icon" href="chismya.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{ margin:0; padding:0; box-sizing:border-box; }
+body{
+  font-family:'Inter','Segoe UI',sans-serif;
+  background:linear-gradient(135deg,rgba(11,61,46,0.88),rgba(6,43,32,0.85)),
+    url('https://images.unsplash.com/photo-1576091160550-2173dba999ef?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80')
+    no-repeat center center/cover;
+  min-height:100vh; display:flex; justify-content:center; align-items:center; padding:20px;
+}
+:root{
+  --med-primary:#0B3D2E; --med-primary-light:#1e6b50; --med-accent:#2c7a5e;
+  --med-text-light:#4a5a6e;
+}
+.box{
+  width:100%; max-width:460px; background:rgba(255,255,255,0.98);
+  padding:44px 38px; border-radius:40px;
+  box-shadow:0 30px 50px rgba(0,0,0,0.2), 0 0 0 1px rgba(11,61,46,0.08);
+  text-align:center; animation:fadeUp 0.6s cubic-bezier(0.2,0.9,0.4,1.1);
+  border:1px solid rgba(11,61,46,0.1);
+}
+.logo{ width:90px; margin-bottom:18px; filter:drop-shadow(0 4px 8px rgba(0,0,0,0.1)); border-radius:16px; }
+h2{ color:var(--med-primary); font-size:2rem; font-weight:800; margin-bottom:10px; letter-spacing:-0.6px; }
+.subtitle{ color:var(--med-text-light); font-size:0.95rem; margin-bottom:32px; line-height:1.5; font-weight:500; }
+#errorBox{
+  display:none; background:#ffe8e8; color:#dc2626; padding:14px 16px; border-radius:24px;
+  margin-bottom:22px; font-size:0.85rem; font-weight:600; border-left:4px solid #dc2626; text-align:left;
+}
+.input-group{ text-align:left; margin-bottom:22px; }
+.input-group label{ display:block; margin-bottom:8px; color:var(--med-primary); font-weight:700; font-size:0.9rem; }
+input{
+  width:100%; padding:15px 20px; border-radius:28px; border:1.5px solid #e2ece6;
+  outline:none; font-family:inherit; font-size:0.95rem; transition:all 0.25s ease;
+}
+input:focus{ border-color:var(--med-accent); box-shadow:0 0 0 4px rgba(44,122,94,0.15); }
+button#loginBtn{
+  width:100%; padding:15px;
+  background:linear-gradient(95deg,var(--med-accent),var(--med-primary-light));
+  color:white; border:none; border-radius:60px; cursor:pointer; margin-top:10px;
+  font-size:1rem; font-weight:800; font-family:inherit; transition:all 0.3s ease;
+  box-shadow:0 8px 20px rgba(44,122,94,0.3); display:flex; align-items:center; justify-content:center; gap:8px;
+}
+button#loginBtn:hover{ transform:translateY(-2px); box-shadow:0 14px 28px rgba(44,122,94,0.4); }
+button#loginBtn:disabled{ opacity:0.65; cursor:not-allowed; transform:none; }
+.footer-text{ margin-top:28px; color:var(--med-text-light); font-size:0.9rem; font-weight:500; }
+.footer-text a{ color:var(--med-accent); text-decoration:none; font-weight:700; }
+.footer-text a:hover{ text-decoration:underline; color:var(--med-primary); }
+@keyframes fadeUp{ from{ opacity:0; transform:translateY(30px); } to{ opacity:1; transform:translateY(0); } }
+@media(max-width:480px){ .box{ padding:28px 20px; border-radius:28px; } h2{ font-size:1.6rem; } }
+</style>
+</head>
+<body>
+<div class="box">
+  <img src="image-removebg-preview.png" alt="MedNex" class="logo"
+    onerror="this.src='https://placehold.co/400x120/0B3D2E/white?text=MedNex'">
+  <h2>Connexion Patient</h2>
+  <p class="subtitle">Accédez à votre espace médical sécurisé<br>et gérez vos rendez-vous facilement.</p>
+
+  <div id="errorBox"></div>
+
+  <div class="input-group">
+    <label><i class="fas fa-envelope" style="margin-right:6px;color:#2c7a5e;"></i> Adresse Email</label>
+    <input type="email" id="email" placeholder="exemple@mednex.com" autocomplete="email">
+  </div>
+  <div class="input-group">
+    <label><i class="fas fa-lock" style="margin-right:6px;color:#2c7a5e;"></i> Mot de passe</label>
+    <input type="password" id="password" placeholder="********" autocomplete="current-password">
+  </div>
+
+  <button id="loginBtn" onclick="loginPatient()">
+    <i class="fas fa-arrow-right-to-bracket"></i> Se connecter
+  </button>
+
+  <div class="footer-text">
+  Vous n'avez pas encore de compte ?
+  <a href="patient-register.html">Créer un compte</a>
+</div>
+<div class="footer-text" style="margin-top:8px;">
+  <a href="reset-password.html" style="color:#5A6F66;font-weight:500;">
+    <i class="fas fa-key"></i> Mot de passe oublié ?
+  </a>
+</div>
+</div>
+
+<script>
+const { createClient } = supabase;
+const sb = createClient(
+  "https://xisdwbyermvbqjuqjagn.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc2R3Ynllcm12YnFqdXFqYWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzUyOTksImV4cCI6MjA5ODExMTI5OX0.Ixz6hlLsOUkH04uNivcH81P4-MWeIc_pJZTwnAfm57I"
+);
+
+const errorBox = document.getElementById("errorBox");
+const loginBtn = document.getElementById("loginBtn");
+
+function showError(msg) {
+  errorBox.style.display = "block";
+  errorBox.innerHTML = `<i class="fas fa-circle-exclamation" style="margin-right:8px;"></i>${msg}`;
+}
+function hideError() { errorBox.style.display = "none"; }
+
+// If already logged in as patient, redirect
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session) checkPatientAndRedirect(session.user);
+});
+
+async function checkPatientAndRedirect(user) {
+  const { data: patient } = await sb
+    .from("patients")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .single();
+  if (patient) window.location.href = "patient-dashboard.html";
+}
+
+async function loginPatient() {
+  hideError();
+  const email    = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  if (!email || !password) { showError("Veuillez remplir tous les champs"); return; }
+
+  loginBtn.disabled = true;
+  loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connexion…';
+
+  try {
+    // 1. Sign in via Supabase Auth
+    const { data: authData, error: authError } = await sb.auth.signInWithPassword({ email, password });
+
+if (authError) {
+  showError("Email ou mot de passe incorrect");
+  return;
+}
+
+// Block login if email not confirmed
+if (!authData.user.email_confirmed_at) {
+  await sb.auth.signOut();
+  showError("Veuillez confirmer votre adresse email avant de vous connecter. Vérifiez votre boîte mail.");
+  return;
+}
+
+    // 2. Explicitly set session so RLS picks up auth.uid() immediately
+    await sb.auth.setSession({
+      access_token: authData.session.access_token,
+      refresh_token: authData.session.refresh_token
+    });
+
+    // 3. Now query with the active session — RLS will see auth.uid()
+    const { data: patient, error: profileError } = await sb
+      .from("patients")
+      .select("id, full_name")
+      .eq("auth_user_id", authData.user.id)
+      .single();
+
+    if (profileError || !patient) {
+      await sb.auth.signOut();
+      showError("Aucun compte patient trouvé pour cet email.");
+      return;
+    }
+
+    // 3. Store only non-sensitive display data
+    localStorage.setItem("patientProfileId", patient.id);
+
+    window.location.href = "patient-dashboard.html";
+
+  } catch (err) {
+    console.error(err);
+    showError("Erreur de connexion. Veuillez réessayer.");
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.innerHTML = '<i class="fas fa-arrow-right-to-bracket"></i> Se connecter';
+  }
+}
+
+// Clear error on input / Enter key
+document.addEventListener("DOMContentLoaded", () => {
+  ["email","password"].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", hideError);
+    el.addEventListener("keypress", e => { if (e.key === "Enter") loginPatient(); });
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Connexion Médecin - MedNex</title>
+<link rel="icon" href="chismya.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{ margin:0; padding:0; box-sizing:border-box; }
+body{
+  font-family:'Inter','Segoe UI',sans-serif;
+  background: linear-gradient(135deg, rgba(11,61,46,0.88), rgba(6,43,32,0.85)),
+    url('https://images.unsplash.com/photo-1576091160550-2173dba999ef?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80')
+    no-repeat center center/cover;
+  min-height:100vh; display:flex; justify-content:center; align-items:center; padding:20px;
+}
+:root{
+  --med-primary:#0B3D2E; --med-primary-light:#1e6b50; --med-accent:#2c7a5e;
+  --med-gray-mid:#e2ece6; --med-text-light:#4a5a6e;
+}
+.login-card{
+  width:100%; max-width:460px; background:rgba(255,255,255,0.98);
+  border-radius:40px; padding:44px 38px;
+  box-shadow:0 30px 50px rgba(0,0,0,0.2), 0 0 0 1px rgba(11,61,46,0.08);
+  animation:fadeUp 0.6s cubic-bezier(0.2,0.9,0.4,1.1);
+  border:1px solid rgba(11,61,46,0.1);
+}
+.login-header{ text-align:center; margin-bottom:32px; }
+.logo{ width:100px; margin-bottom:20px; filter:drop-shadow(0 4px 8px rgba(0,0,0,0.1)); border-radius:16px; display:inline-block; }
+.login-header h2{ color:var(--med-primary); font-size:2rem; font-weight:800; margin-bottom:10px; letter-spacing:-0.6px; }
+.login-header p{ color:var(--med-text-light); line-height:1.5; font-size:0.95rem; font-weight:500; }
+.login-form{ display:flex; flex-direction:column; gap:20px; }
+.input-group{ display:flex; flex-direction:column; }
+.input-group label{ margin-bottom:8px; color:var(--med-primary); font-weight:700; font-size:0.9rem; display:flex; align-items:center; gap:8px; }
+.input-group label i{ font-size:0.9rem; color:var(--med-accent); }
+.login-form input{ width:100%; padding:15px 20px; border-radius:28px; border:1.5px solid #e2ece6; font-size:0.95rem; font-family:inherit; outline:none; transition:all 0.25s ease; }
+.login-form input:focus{ border-color:var(--med-accent); box-shadow:0 0 0 4px rgba(44,122,94,0.12); }
+.login-btn{
+  width:100%; padding:15px; border:none; border-radius:60px;
+  background:linear-gradient(95deg,var(--med-accent),var(--med-primary-light));
+  color:white; font-size:1rem; font-weight:800; font-family:inherit; cursor:pointer;
+  transition:all 0.3s ease; margin-top:5px; box-shadow:0 8px 20px rgba(44,122,94,0.3);
+  display:flex; align-items:center; justify-content:center; gap:10px;
+}
+.login-btn:hover{ transform:translateY(-2px); box-shadow:0 14px 28px rgba(44,122,94,0.4); }
+.login-btn:disabled{ opacity:0.65; cursor:not-allowed; transform:none; }
+#errorBox{
+  display:none; background:#ffe8e8; color:#dc2626; padding:14px 18px; border-radius:24px;
+  margin-bottom:22px; font-size:0.9rem; font-weight:600; border-left:4px solid #dc2626; text-align:left;
+}
+#errorBox i{ margin-right:8px; }
+.register-link{ text-align:center; margin-top:22px; color:var(--med-text-light); font-size:0.9rem; font-weight:500; }
+.register-link a{ color:var(--med-accent); text-decoration:none; font-weight:700; margin-left:4px; }
+.register-link a:hover{ text-decoration:underline; color:var(--med-primary); }
+.back-home{ display:block; text-align:center; margin-top:16px; color:var(--med-accent); text-decoration:none; font-weight:600; transition:0.2s; font-size:0.9rem; }
+.back-home i{ margin-right:6px; }
+.back-home:hover{ text-decoration:underline; color:var(--med-primary); }
+@keyframes fadeUp{ from{ opacity:0; transform:translateY(30px); } to{ opacity:1; transform:translateY(0); } }
+@media(max-width:480px){
+  .login-card{ padding:28px 20px; border-radius:28px; }
+  .login-header h2{ font-size:1.6rem; }
+  .logo{ width:70px; }
+}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="login-header">
+    <img src="image-removebg-preview.png" alt="MedNex" class="logo"
+      onerror="this.src='https://placehold.co/400x120/0B3D2E/white?text=MedNex'">
+    <h2>Connexion Médecin</h2>
+    <p>Connectez-vous à votre espace MedNex<br>pour gérer vos rendez-vous et patients.</p>
+  </div>
+
+  <div id="errorBox"><i class="fas fa-exclamation-triangle"></i> <span></span></div>
+
+  <div class="login-form">
+    <div class="input-group">
+      <label><i class="fas fa-envelope"></i> Adresse Email</label>
+      <input type="email" id="email" placeholder="exemple@mednex.com" autocomplete="email">
+    </div>
+    <div class="input-group">
+      <label><i class="fas fa-lock"></i> Mot de passe</label>
+      <input type="password" id="password" placeholder="********" autocomplete="current-password">
+    </div>
+    <button id="loginBtn" onclick="loginDoctor()" class="login-btn">
+      <i class="fas fa-arrow-right-to-bracket"></i> Se connecter
+    </button>
+  </div>
+
+  <div class="register-link">
+  Vous n'avez pas encore de compte ?
+  <a href="doctor-register.html">Créez-en un ici</a>
+</div>
+<div class="register-link" style="margin-top:8px;">
+  <a href="reset-password.html" style="color:#5A6F66;font-weight:500;">
+    <i class="fas fa-key"></i> Mot de passe oublié ?
+  </a>
+</div>
+  <a href="index.html" class="back-home"><i class="fas fa-arrow-left"></i> Retour à l'accueil</a>
+</div>
+
+<script>
+const { createClient } = supabase;
+const sb = createClient(
+  "https://xisdwbyermvbqjuqjagn.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc2R3Ynllcm12YnFqdXFqYWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzUyOTksImV4cCI6MjA5ODExMTI5OX0.Ixz6hlLsOUkH04uNivcH81P4-MWeIc_pJZTwnAfm57I"
+);
+
+const errorBox  = document.getElementById("errorBox");
+const errorSpan = errorBox.querySelector("span");
+const loginBtn  = document.getElementById("loginBtn");
+
+function showError(msg) {
+  errorSpan.textContent = msg;
+  errorBox.style.display = "block";
+}
+function hideError() { errorBox.style.display = "none"; }
+
+// If already logged in as doctor, redirect
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session) checkDoctorAndRedirect(session.user);
+});
+
+async function checkDoctorAndRedirect(user) {
+  const { data: doctor } = await sb
+    .from("doctors")
+    .select("id, status")
+    .eq("auth_user_id", user.id)
+    .single();
+  if (doctor && doctor.status === "approved") {
+    window.location.href = "doctor-dashboard.html";
+  }
+}
+
+async function loginDoctor() {
+  hideError();
+  const email    = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  if (!email || !password) { showError("Veuillez remplir tous les champs"); return; }
+
+  loginBtn.disabled = true;
+  loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connexion…';
+
+  try {
+    // 1. Sign in via Supabase Auth (uses hashed passwords — safe)
+    const { data: authData, error: authError } = await sb.auth.signInWithPassword({ email, password });
+
+if (authError) {
+  showError("Email ou mot de passe incorrect.");
+  return;
+}
+
+// Block login if email not confirmed
+if (!authData.user.email_confirmed_at) {
+  await sb.auth.signOut();
+  showError("Veuillez confirmer votre adresse email avant de vous connecter. Vérifiez votre boîte mail.");
+  return;
+}
+
+    // 2. Explicitly set session so RLS picks up auth.uid() immediately
+    await sb.auth.setSession({
+      access_token: authData.session.access_token,
+      refresh_token: authData.session.refresh_token
+    });
+
+    // 3. Look up doctor profile linked to this auth user
+    const { data: doctor, error: profileError } = await sb
+      .from("doctors")
+      .select("id, status, full_name")
+      .eq("auth_user_id", authData.user.id)
+      .single();
+
+    if (profileError || !doctor) {
+      await sb.auth.signOut();
+      showError("Aucun compte médecin trouvé pour cet email.");
+      return;
+    }
+
+    // 3. Check approval status
+    if (doctor.status === "pending") {
+      await sb.auth.signOut();
+      showError("Votre compte est en attente d'approbation par l'administrateur.");
+      return;
+    }
+    if (doctor.status === "rejected") {
+      await sb.auth.signOut();
+      showError("Votre compte médecin a été refusé. Veuillez contacter le support.");
+      return;
+    }
+    if (doctor.status !== "approved") {
+      await sb.auth.signOut();
+      showError("Statut du compte inconnu. Veuillez contacter l'assistance.");
+      return;
+    }
+
+    // 4. Session is managed by Supabase (JWT in httpOnly-style cookie via SDK)
+    //    Only store non-sensitive display data
+    localStorage.setItem("doctorProfileId", doctor.id);
+
+    window.location.href = "doctor-dashboard.html";
+
+  } catch (err) {
+    console.error(err);
+    showError("Erreur de connexion. Veuillez réessayer.");
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.innerHTML = '<i class="fas fa-arrow-right-to-bracket"></i> Se connecter';
+  }
+}
+
+// Clear error on input
+["email","password"].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener("input", hideError);
+  el.addEventListener("keypress", e => { if (e.key === "Enter") loginDoctor(); });
+});
+</script>
+</body>
+</html>

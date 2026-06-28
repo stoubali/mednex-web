@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>MedNex · La santé connectée</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" href="chismya.png" type="image/png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* ---------- RESET & BASE ---------- */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary: #134F33;
+      --secondary: #1C7A4D;
+      --light-green: #EAF7EF;
+      --white: #FFFFFF;
+      --bg: #F7FAF8;
+      --border: #E5ECE8;
+      --success: #22C55E;
+      --warning: #F59E0B;
+      --info: #3B82F6;
+      --radius-lg: 28px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --shadow-card: 0 20px 40px -12px rgba(0,32,16,0.08);
+      --shadow-hover: 0 24px 48px -16px rgba(0,48,24,0.14);
+      --transition: 0.25s cubic-bezier(0.25,0.46,0.45,0.94);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: #0B1E18;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      width: 100%;
+    }
+
+    /* ---------- UTILITY ---------- */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    .text-center { text-align: center; }
+
+    /* ---------- NAVBAR (fully responsive) ---------- */
+    .navbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: rgba(255,255,255,0.65);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border-bottom: 1px solid rgba(255,255,255,0.4);
+      box-shadow: 0 2px 16px rgba(0,32,16,0.04);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      gap: 12px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 1.2rem;
+      color: var(--primary);
+      letter-spacing: -0.5px;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .logo i {
+      font-size: 1.2rem;
+      background: var(--primary);
+      color: white;
+      padding: 6px 8px;
+      border-radius: 12px;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      list-style: none;
+      flex-wrap: wrap;
+    }
+    .nav-links a {
+      text-decoration: none;
+      color: #3A5A4E;
+      font-weight: 500;
+      font-size: 0.9rem;
+      transition: color var(--transition);
+      white-space: nowrap;
+    }
+    .nav-links a:hover { color: var(--primary); }
+    .nav-cta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn-primary {
+      background: var(--primary);
+      border: none;
+      color: white;
+      padding: 8px 18px;
+      border-radius: 60px;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: inherit;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .btn-primary:hover {
+      background: var(--secondary);
+      transform: scale(0.97);
+      box-shadow: 0 8px 20px rgba(19,79,51,0.2);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: #1A3A2E;
+      padding: 8px 18px;
+      border-radius: 60px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+      font-family: inherit;
+      font-size: 0.82rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .btn-outline:hover {
+      border-color: var(--primary);
+      background: var(--light-green);
+    }
+    .btn-lg {
+      padding: 12px 28px;
+      font-size: 0.95rem;
+    }
+
+    /* hamburger */
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      color: var(--primary);
+      cursor: pointer;
+      padding: 4px 6px;
+    }
+
+    /* ---------- HERO ---------- */
+    .hero {
+      background: linear-gradient(135deg, #0B3D2E 0%, #134F33 50%, #1C7A4D 100%);
+      padding: 60px 20px 50px;
+      color: white;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 120%, rgba(34,197,94,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(4px);
+      padding: 4px 16px;
+      border-radius: 60px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 6vw, 3.6rem);
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.1;
+      margin-bottom: 16px;
+      max-width: 760px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .hero h1 span {
+      background: linear-gradient(90deg, #6EE7A8, #34D399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: clamp(0.95rem, 1.3vw, 1.15rem);
+      opacity: 0.85;
+      max-width: 560px;
+      margin: 0 auto 28px;
+      line-height: 1.6;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .hero-actions .btn-outline {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.25);
+      color: white;
+    }
+    .hero-actions .btn-outline:hover {
+      background: rgba(255,255,255,0.18);
+      border-color: rgba(255,255,255,0.4);
+    }
+    .hero-actions .btn-primary {
+      background: white;
+      color: var(--primary);
+    }
+    .hero-actions .btn-primary:hover {
+      background: #e8f5ed;
+    }
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      margin-top: 48px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      flex-wrap: wrap;
+    }
+    .hero-stat .num {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 800;
+      letter-spacing: -1px;
+      display: block;
+    }
+    .hero-stat .label {
+      font-size: 0.75rem;
+      opacity: 0.65;
+      font-weight: 500;
+    }
+
+    /* ---------- PREVIEW SECTION ---------- */
+    .preview-section {
+      background: linear-gradient(180deg, #134F33 0%, var(--bg) 40%);
+      padding: 0 16px 40px;
+      position: relative;
+    }
+    .preview-wrap {
+      max-width: 900px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 40px 80px rgba(0,32,16,0.12), 0 1px 0 rgba(255,255,255,0.6) inset;
+      padding: 20px 18px;
+      transform: translateY(-30px);
+    }
+    .preview-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .preview-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .preview-dot:nth-child(1) { background: #EF4444; }
+    .preview-dot:nth-child(2) { background: #F59E0B; }
+    .preview-dot:nth-child(3) { background: #22C55E; }
+    .preview-url {
+      margin-left: 10px;
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 40px;
+      padding: 4px 14px;
+      font-size: 0.65rem;
+      color: #5A6F66;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 120px;
+    }
+    .mini-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .mini-kpi {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 12px;
+    }
+    .mini-kpi .icon {
+      width: 28px;
+      height: 28px;
+      background: var(--light-green);
+      color: var(--primary);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      margin-bottom: 6px;
+    }
+    .mini-kpi .val { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.3px; }
+    .mini-kpi .lbl { font-size: 0.6rem; color: #5A6F66; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+    .mini-row {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      gap: 12px;
+    }
+    .mini-timeline, .mini-table {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+    }
+    .mini-timeline-label, .mini-table-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+    .mini-slot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: 40px;
+      border-left: 3px solid var(--success);
+      background: rgba(34,197,94,0.05);
+      margin-bottom: 4px;
+      font-size: 0.68rem;
+    }
+    .mini-slot.free { border-left-color: #D1DCD6; background: transparent; opacity: 0.5; }
+    .mini-slot .time { font-weight: 600; color: var(--primary); min-width: 36px; }
+    .mini-slot .name { flex: 1; }
+    .mini-slot .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+    .mini-slot.free .dot { background: #D1DCD6; }
+    .mini-tr {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr 0.6fr;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.03);
+      font-size: 0.68rem;
+      align-items: center;
+      gap: 4px;
+    }
+    .mini-tr.header { font-weight: 600; color: #5A6F66; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.3px; }
+    .mini-badge {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 60px;
+      font-size: 0.55rem;
+      font-weight: 600;
+    }
+    .mini-badge.confirmed { background: #DCFCE7; color: #166534; }
+    .mini-badge.pending { background: #FEF3C7; color: #92400E; }
+
+    /* ---------- SECTIONS ---------- */
+    .section { padding: 60px 20px; }
+    .section-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--light-green);
+      color: var(--primary);
+      padding: 4px 14px;
+      border-radius: 60px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.15;
+      color: #0B1E18;
+      margin-bottom: 10px;
+    }
+    .section-sub {
+      font-size: 0.95rem;
+      color: #5A6F66;
+      max-width: 520px;
+      line-height: 1.6;
+    }
+
+    /* How it works */
+    .how-section { background: white; padding: 60px 0; }
+    .how-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    .how-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 32px;
+      margin-top: 40px;
+      position: relative;
+    }
+    .step-card { text-align: center; position: relative; }
+    .step-num {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 24px rgba(19,79,51,0.2);
+    }
+    .step-card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+    .step-card p { font-size: 0.85rem; color: #5A6F66; line-height: 1.5; }
+
+    /* Features */
+    .features-section { padding: 60px 0; background: var(--bg); }
+    .features-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      margin-top: 40px;
+    }
+    .feature-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 24px 20px;
+      transition: all var(--transition);
+    }
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-hover);
+      border-color: rgba(19,79,51,0.15);
+    }
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      background: var(--light-green);
+      color: var(--primary);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      margin-bottom: 14px;
+    }
+    .feature-card h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
+    .feature-card p { font-size: 0.83rem; color: #5A6F66; line-height: 1.5; }
+    .feature-card.highlighted {
+      background: linear-gradient(135deg, #0B3D2E, #134F33);
+      border-color: transparent;
+      color: white;
+    }
+    .feature-card.highlighted .feature-icon { background: rgba(255,255,255,0.15); color: white; }
+    .feature-card.highlighted h4 { color: white; }
+    .feature-card.highlighted p { color: rgba(255,255,255,0.7); }
+
+    /* Specialties */
+    .spec-section { padding: 60px 0; background: white; }
+    .spec-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 14px;
+      margin-top: 40px;
+    }
+    .spec-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px 12px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition);
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .spec-card:hover {
+      background: var(--light-green);
+      border-color: rgba(19,79,51,0.2);
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-hover);
+    }
+    .spec-icon {
+      width: 44px;
+      height: 44px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      color: var(--primary);
+      transition: all var(--transition);
+    }
+    .spec-card:hover .spec-icon {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .spec-card h5 { font-size: 0.8rem; font-weight: 600; color: #0B1E18; line-height: 1.2; }
+    .spec-card .spec-count { font-size: 0.65rem; color: #5A6F66; background: white; border: 1px solid var(--border); padding: 1px 10px; border-radius: 60px; }
+    .spec-card:hover .spec-count { background: var(--primary); color: white; border-color: var(--primary); }
+    .spec-cta { text-align: center; margin-top: 32px; }
+
+    /* For who */
+    .for-section { padding: 60px 0; background: white; }
+    .for-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    .for-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 40px;
+    }
+    .for-card {
+      border-radius: var(--radius-lg);
+      padding: 32px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .for-card.patient-card { background: var(--light-green); border: 1px solid rgba(19,79,51,0.1); }
+    .for-card.doctor-card { background: linear-gradient(135deg, #0B3D2E 0%, #134F33 100%); color: white; }
+    .for-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 14px;
+      border-radius: 60px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+    }
+    .patient-card .for-badge { background: rgba(19,79,51,0.1); color: var(--primary); }
+    .doctor-card .for-badge { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.9); }
+    .for-card h3 { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.3px; margin-bottom: 10px; }
+    .patient-card h3 { color: #0B1E18; }
+    .doctor-card h3 { color: white; }
+    .for-card p { font-size: 0.88rem; line-height: 1.6; margin-bottom: 20px; }
+    .patient-card p { color: #3A5A4E; }
+    .doctor-card p { color: rgba(255,255,255,0.75); }
+    .for-perks { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+    .for-perks li { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: 500; }
+    .patient-card .for-perks li { color: #1A3A2E; }
+    .doctor-card .for-perks li { color: rgba(255,255,255,0.9); }
+    .perk-check {
+      width: 20px; height: 20px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.6rem; flex-shrink: 0;
+    }
+    .patient-card .perk-check { background: var(--primary); color: white; }
+    .doctor-card .perk-check { background: rgba(255,255,255,0.2); color: white; }
+    .doctor-card .btn-primary { background: white; color: var(--primary); }
+    .doctor-card .btn-primary:hover { background: #e8f5ed; }
+
+    /* Testimonials */
+    .testimonials-section { background: var(--bg); padding: 60px 0; }
+    .testimonials-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      margin-top: 40px;
+    }
+    .testimonial-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 20px 18px;
+      transition: all var(--transition);
+    }
+    .testimonial-card:hover { box-shadow: var(--shadow-hover); }
+    .stars { color: #F59E0B; font-size: 0.8rem; margin-bottom: 10px; letter-spacing: 1px; }
+    .testimonial-card p { font-size: 0.85rem; line-height: 1.6; color: #2A4A3E; margin-bottom: 14px; }
+    .testimonial-author { display: flex; align-items: center; gap: 10px; }
+    .author-avatar {
+      width: 36px; height: 36px; border-radius: 60px;
+      background: var(--light-green); color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.85rem;
+    }
+    .testimonial-author .name { font-weight: 600; font-size: 0.82rem; }
+    .testimonial-author .role { font-size: 0.7rem; color: #5A6F66; }
+
+    /* Contact */
+    .contact-section { padding: 60px 0; background: var(--bg); }
+    .contact-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      gap: 40px;
+      margin-top: 40px;
+      align-items: start;
+    }
+    .contact-info { display: flex; flex-direction: column; gap: 20px; }
+    .contact-info-item { display: flex; align-items: flex-start; gap: 14px; }
+    .contact-info-icon {
+      width: 42px; height: 42px;
+      background: var(--light-green); color: var(--primary);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0;
+    }
+    .contact-info-item h5 { font-size: 0.85rem; font-weight: 700; margin-bottom: 2px; color: #0B1E18; }
+    .contact-info-item p { font-size: 0.8rem; color: #5A6F66; line-height: 1.5; }
+    .contact-form-wrap {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      box-shadow: var(--shadow-card);
+    }
+    .contact-form-wrap h4 { font-size: 1rem; font-weight: 700; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-group-c { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+    .form-group-c label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: #5A6F66; }
+    .form-group-c input, .form-group-c select, .form-group-c textarea {
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 0.82rem;
+      background: var(--bg);
+      outline: none;
+      color: #0B1E18;
+      transition: border var(--transition), box-shadow var(--transition);
+      width: 100%;
+    }
+    .form-group-c input:focus, .form-group-c select:focus, .form-group-c textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(19,79,51,0.07);
+      background: white;
+    }
+    .form-group-c textarea { min-height: 80px; resize: vertical; }
+    .contact-send-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 60px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .contact-send-btn:hover { background: var(--secondary); box-shadow: 0 8px 20px rgba(19,79,51,0.22); transform: scale(0.99); }
+    .contact-success { display: none; text-align: center; padding: 20px; color: var(--primary); }
+    .contact-success i { font-size: 2.2rem; margin-bottom: 8px; display: block; color: var(--success); }
+    .contact-success h5 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .contact-success p { font-size: 0.82rem; color: #5A6F66; }
+
+    /* CTA */
+    .cta-section {
+      padding: 60px 20px;
+      background: linear-gradient(135deg, #0B3D2E 0%, #134F33 50%, #1C7A4D 100%);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section h2 { font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 800; color: white; letter-spacing: -0.3px; margin-bottom: 12px; }
+    .cta-section p { font-size: 0.95rem; color: rgba(255,255,255,0.75); margin-bottom: 28px; }
+    .cta-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .cta-btns .btn-primary { background: white; color: var(--primary); }
+    .cta-btns .btn-primary:hover { background: #e8f5ed; }
+    .cta-btns .btn-outline { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.25); color: white; }
+    .cta-btns .btn-outline:hover { background: rgba(255,255,255,0.18); }
+
+    /* Footer */
+    footer { background: white; border-top: 1px solid var(--border); padding: 40px 20px 24px; }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 32px;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .footer-col h6 { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #0B1E18; margin-bottom: 14px; }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .footer-col ul a { font-size: 0.8rem; color: #5A6F66; text-decoration: none; transition: color var(--transition); }
+    .footer-col ul a:hover { color: var(--primary); }
+    .footer-bottom {
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .footer-bottom p { font-size: 0.75rem; color: #5A6F66; }
+
+    /* ---------- RESPONSIVE ---------- */
+    @media (max-width: 992px) {
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .contact-grid { grid-template-columns: 1fr; }
+      .for-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 64px;
+        left: 0;
+        right: 0;
+        background: white;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+        z-index: 200;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .nav-links a { padding: 6px 0; }
+      .hamburger { display: flex; }
+      .nav-cta .btn-outline { display: none; }
+      .hero { padding: 48px 16px 40px; }
+      .hero-stats { gap: 20px; }
+      .preview-wrap { padding: 16px; transform: translateY(-20px); }
+      .mini-row { grid-template-columns: 1fr; }
+      .mini-kpi-row { grid-template-columns: repeat(2, 1fr); }
+      .features-grid { grid-template-columns: 1fr; }
+      .spec-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+      .testimonials-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .form-row-2 { grid-template-columns: 1fr; }
+      .contact-form-wrap { padding: 20px 16px; }
+    }
+
+    @media (max-width: 480px) {
+      .hero h1 { font-size: 1.8rem; }
+      .hero-actions .btn-lg { padding: 10px 18px; font-size: 0.85rem; }
+      .nav-cta .btn-primary { padding: 6px 14px; font-size: 0.75rem; }
+      .preview-wrap { padding: 12px; }
+      .mini-kpi-row { grid-template-columns: 1fr 1fr; }
+      .mini-kpi .val { font-size: 1rem; }
+      .section { padding: 40px 16px; }
+      .for-card { padding: 24px 18px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 20px; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+      .contact-info-item { flex-direction: column; gap: 4px; }
+    }
+
+    /* fade-up animation */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+    }
+    .fade-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="index.html" class="logo">
+      <img src="logo_navbar.png" alt="MedNex" style="height:36px;object-fit:contain;border-radius:8px;" />
+    </a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#features">Fonctionnalités</a></li>
+      <li><a href="#specialties">Spécialités</a></li>
+      <li><a href="#how">Comment ça marche</a></li>
+      <li><a href="#for-who">Pour qui</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a href="doctor-login.html" class="btn-outline"><i class="fas fa-user-md"></i> Médecins</a>
+      <a href="patient-login.html" class="btn-primary"><i class="fas fa-user"></i> Patients</a>
+    </div>
+    <button class="hamburger" aria-label="Menu" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-eyebrow">
+      <i class="fas fa-circle"></i>
+      Plateforme médicale connectée
+    </div>
+    <h1>La santé, <span>simplifiée</span><br>pour tous</h1>
+    <p>MedNex connecte patients et médecins dans un espace numérique fluide. Prenez vos rendez-vous, gérez vos disponibilités, et suivez vos ordonnances — en quelques secondes.</p>
+    <div class="hero-actions">
+      <a href="patient-login.html" class="btn-primary btn-lg"><i class="fas fa-calendar-check"></i> Prendre un rendez-vous</a>
+      <a href="doctor-login.html" class="btn-outline btn-lg"><i class="fas fa-user-md"></i> Espace Médecin</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><span class="num">2 400+</span><span class="label">Rendez-vous pris</span></div>
+      <div class="hero-stat"><span class="num">180+</span><span class="label">Médecins actifs</span></div>
+      <div class="hero-stat"><span class="num">98%</span><span class="label">Satisfaction patients</span></div>
+      <div class="hero-stat"><span class="num">< 30s</span><span class="label">Pour réserver</span></div>
+    </div>
+  </section>
+
+  <!-- Dashboard Preview -->
+  <div class="preview-section">
+    <div class="preview-wrap fade-up">
+      <div class="preview-bar">
+        <div class="preview-dot"></div>
+        <div class="preview-dot"></div>
+        <div class="preview-dot"></div>
+        <div class="preview-url">
+          <i class="fas fa-lock" style="font-size:0.6rem;color:var(--success);"></i>
+          mednex.app · Tableau de bord Médecin
+        </div>
+      </div>
+      <div class="mini-kpi-row">
+        <div class="mini-kpi"><div class="icon"><i class="fas fa-users"></i></div><div class="val">12</div><div class="lbl">Patients aujourd'hui</div></div>
+        <div class="mini-kpi"><div class="icon"><i class="fas fa-check-circle"></i></div><div class="val">9</div><div class="lbl">Confirmés</div></div>
+        <div class="mini-kpi"><div class="icon"><i class="fas fa-clock"></i></div><div class="val">3</div><div class="lbl">En attente</div></div>
+        <div class="mini-kpi"><div class="icon"><i class="fas fa-chart-pie"></i></div><div class="val">80%</div><div class="lbl">Occupation</div></div>
+      </div>
+      <div class="mini-row">
+        <div class="mini-timeline">
+          <div class="mini-timeline-label"><i class="fas fa-hourglass-half"></i> Aujourd'hui</div>
+          <div class="mini-slot"><span class="time">08:00</span><span class="name">Amine Benjelloun</span><div class="dot"></div></div>
+          <div class="mini-slot"><span class="time">08:15</span><span class="name">Fatima Errahi</span><div class="dot"></div></div>
+          <div class="mini-slot free"><span class="time">08:30</span><span class="name">Libre</span><div class="dot"></div></div>
+          <div class="mini-slot"><span class="time">08:45</span><span class="name">Karim El Idrissi</span><div class="dot"></div></div>
+          <div class="mini-slot free"><span class="time">09:00</span><span class="name">Libre</span><div class="dot"></div></div>
+        </div>
+        <div class="mini-table">
+          <div class="mini-table-label"><i class="fas fa-user-md"></i> Patients du jour</div>
+          <div class="mini-tr header"><span>Patient</span><span>Heure</span><span>Statut</span></div>
+          <div class="mini-tr"><span><strong>Amine B.</strong></span><span>08:00</span><span><span class="mini-badge confirmed">Confirmé</span></span></div>
+          <div class="mini-tr"><span><strong>Fatima E.</strong></span><span>08:15</span><span><span class="mini-badge confirmed">Confirmé</span></span></div>
+          <div class="mini-tr"><span><strong>Karim I.</strong></span><span>08:45</span><span><span class="mini-badge pending">En attente</span></span></div>
+          <div class="mini-tr"><span><strong>Sara L.</strong></span><span>09:15</span><span><span class="mini-badge confirmed">Confirmé</span></span></div>
+          <div class="mini-tr"><span><strong>Omar R.</strong></span><span>09:30</span><span><span class="mini-badge pending">En attente</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <section class="how-section" id="how">
+    <div class="how-inner">
+      <div class="fade-up text-center">
+        <div class="section-tag"><i class="fas fa-route"></i> Parcours</div>
+        <h2 class="section-title">Prêt en 3 étapes</h2>
+        <p class="section-sub" style="margin:0 auto;">Du premier accès à la consultation, MedNex vous guide à chaque étape sans friction.</p>
+      </div>
+      <div class="how-steps">
+        <div class="step-card fade-up"><div class="step-num"><i class="fas fa-user-plus"></i></div><h4>Créez votre compte</h4><p>Patient ou médecin, votre inscription prend moins d'une minute. Vos données sont sécurisées et confidentielles.</p></div>
+        <div class="step-card fade-up" style="transition-delay:0.1s"><div class="step-num"><i class="fas fa-calendar-alt"></i></div><h4>Choisissez un créneau</h4><p>Parcourez les disponibilités en temps réel, filtrez par spécialité et réservez le créneau qui vous convient.</p></div>
+        <div class="step-card fade-up" style="transition-delay:0.2s"><div class="step-num"><i class="fas fa-stethoscope"></i></div><h4>Consultez & suivez</h4><p>Recevez vos ordonnances numériques, accédez à votre dossier médical et suivez vos rendez-vous à tout moment.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features-section" id="features">
+    <div class="features-inner">
+      <div class="fade-up">
+        <div class="section-tag"><i class="fas fa-bolt"></i> Fonctionnalités</div>
+        <h2 class="section-title">Tout ce dont vous avez besoin</h2>
+        <p class="section-sub">MedNex centralise votre parcours de santé dans une interface claire et moderne.</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card fade-up"><div class="feature-icon"><i class="fas fa-calendar-check"></i></div><h4>Prise de RDV en temps réel</h4><p>Les créneaux se mettent à jour instantanément. Fini les doublons et les attentes au téléphone.</p></div>
+        <div class="feature-card fade-up" style="transition-delay:0.08s"><div class="feature-icon"><i class="fas fa-prescription"></i></div><h4>Ordonnances numériques</h4><p>Les médecins génèrent des ordonnances directement depuis le tableau de bord, accessibles par les patients immédiatement.</p></div>
+        <div class="feature-card highlighted fade-up" style="transition-delay:0.16s"><div class="feature-icon"><i class="fas fa-chart-line"></i></div><h4>Tableau de bord médecin</h4><p>Vue en temps réel des patients du jour, KPIs de taux d'occupation, timeline interactive et gestion des disponibilités.</p></div>
+        <div class="feature-card fade-up" style="transition-delay:0.24s"><div class="feature-icon"><i class="fas fa-folder-open"></i></div><h4>Dossier médical centralisé</h4><p>Toutes les consultations, diagnostics et traitements au même endroit, accessibles en un clic.</p></div>
+        <div class="feature-card fade-up" style="transition-delay:0.32s"><div class="feature-icon"><i class="fas fa-sync-alt"></i></div><h4>Auto-refresh en direct</h4><p>Les données se synchronisent automatiquement toutes les 5 secondes, sans rechargement de page.</p></div>
+        <div class="feature-card fade-up" style="transition-delay:0.4s"><div class="feature-icon"><i class="fas fa-mobile-alt"></i></div><h4>Responsive & mobile</h4><p>Accessible depuis n'importe quel appareil — smartphone, tablette ou ordinateur — avec la même expérience fluide.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Specialties -->
+  <section class="spec-section" id="specialties">
+    <div class="spec-inner">
+      <div class="fade-up text-center">
+        <div class="section-tag"><i class="fas fa-stethoscope"></i> Spécialités</div>
+        <h2 class="section-title">Toutes les spécialités disponibles</h2>
+        <p class="section-sub" style="margin:0 auto;">Plus de 180 médecins dans 14 spécialités vous attendent sur MedNex pour des consultations rapides et personnalisées.</p>
+      </div>
+      <div class="spec-grid">
+        <a href="#" class="spec-card fade-up"><div class="spec-icon"><i class="fas fa-heartbeat"></i></div><h5>Cardiologie</h5><span class="spec-count">24 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.05s"><div class="spec-icon"><i class="fas fa-brain"></i></div><h5>Neurologie</h5><span class="spec-count">12 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.1s"><div class="spec-icon"><i class="fas fa-child"></i></div><h5>Pédiatrie</h5><span class="spec-count">18 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.15s"><div class="spec-icon"><i class="fas fa-eye"></i></div><h5>Ophtalmologie</h5><span class="spec-count">9 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.2s"><div class="spec-icon"><i class="fas fa-tooth"></i></div><h5>Dentisterie</h5><span class="spec-count">21 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.25s"><div class="spec-icon"><i class="fas fa-bone"></i></div><h5>Orthopédie</h5><span class="spec-count">11 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.3s"><div class="spec-icon"><i class="fas fa-lungs"></i></div><h5>Pneumologie</h5><span class="spec-count">8 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.35s"><div class="spec-icon"><i class="fas fa-venus"></i></div><h5>Gynécologie</h5><span class="spec-count">16 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.4s"><div class="spec-icon"><i class="fas fa-microscope"></i></div><h5>Dermatologie</h5><span class="spec-count">13 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.45s"><div class="spec-icon"><i class="fas fa-user-md"></i></div><h5>Médecine générale</h5><span class="spec-count">32 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.5s"><div class="spec-icon"><i class="fas fa-kidneys"></i></div><h5>Urologie</h5><span class="spec-count">7 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.55s"><div class="spec-icon"><i class="fas fa-stomach"></i></div><h5>Gastro-entérologie</h5><span class="spec-count">9 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.6s"><div class="spec-icon"><i class="fas fa-head-side-mask"></i></div><h5>ORL</h5><span class="spec-count">10 médecins</span></a>
+        <a href="#" class="spec-card fade-up" style="transition-delay:0.65s"><div class="spec-icon"><i class="fas fa-spa"></i></div><h5>Psychiatrie</h5><span class="spec-count">10 médecins</span></a>
+      </div>
+      <div class="spec-cta fade-up"><a href="#" class="btn-primary btn-lg"><i class="fas fa-search"></i> Explorer tous les médecins</a></div>
+    </div>
+  </section>
+
+  <!-- For who -->
+  <section class="for-section" id="for-who">
+    <div class="for-inner">
+      <div class="fade-up text-center">
+        <div class="section-tag"><i class="fas fa-users"></i> Pour qui</div>
+        <h2 class="section-title">Un espace pour chacun</h2>
+        <p class="section-sub" style="margin:0 auto;">Que vous soyez patient en quête de soins ou médecin qui gère son cabinet, MedNex s'adapte à vous.</p>
+      </div>
+      <div class="for-grid">
+        <div class="for-card patient-card fade-up">
+          <div class="for-badge"><i class="fas fa-user"></i> Pour les patients</div>
+          <h3>Prenez soin de vous,<br>sans effort</h3>
+          <p>MedNex vous donne une vue complète de votre santé : rendez-vous à venir, ordonnances actives, dossiers médicaux et accès à plus de 180 médecins.</p>
+          <ul class="for-perks"><li><div class="perk-check"><i class="fas fa-check"></i></div>Réservation en moins de 30 secondes</li><li><div class="perk-check"><i class="fas fa-check"></i></div>Rappels de rendez-vous automatiques</li><li><div class="perk-check"><i class="fas fa-check"></i></div>Ordonnances téléchargeables en PDF</li><li><div class="perk-check"><i class="fas fa-check"></i></div>Historique médical complet</li></ul>
+          <a href="patient-register.html" class="btn-primary"><i class="fas fa-calendar-plus"></i> Créer mon compte patient</a>
+        </div>
+        <div class="for-card doctor-card fade-up" style="transition-delay:0.12s">
+          <div class="for-badge"><i class="fas fa-user-md"></i> Pour les médecins</div>
+          <h3>Gérez votre cabinet<br>avec clarté</h3>
+          <p>Un tableau de bord complet pour piloter vos disponibilités, suivre vos patients du jour, et générer des ordonnances numériques en toute fluidité.</p>
+          <ul class="for-perks"><li><div class="perk-check"><i class="fas fa-check"></i></div>Agenda en temps réel avec KPIs</li><li><div class="perk-check"><i class="fas fa-check"></i></div>Gestion flexible des créneaux</li><li><div class="perk-check"><i class="fas fa-check"></i></div>Module d'ordonnances intégré</li><li><div class="perk-check"><i class="fas fa-check"></i></div>Export CSV des données patients</li></ul>
+          <a href="doctor-login.html" class="btn-primary"><i class="fas fa-sign-in-alt"></i> Accéder à mon espace</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="testimonials-section">
+    <div class="testimonials-inner">
+      <div class="fade-up text-center">
+        <div class="section-tag"><i class="fas fa-comment-medical"></i> Avis</div>
+        <h2 class="section-title">Ils font confiance à MedNex</h2>
+      </div>
+      <div class="testimonials-grid">
+        <div class="testimonial-card fade-up"><div class="stars">★★★★★</div><p>« J'ai pris mon premier rendez-vous en moins d'une minute. L'interface est tellement intuitive que même ma mère l'utilise sans problème. »</p><div class="testimonial-author"><div class="author-avatar">L</div><div><div class="name">Leila M.</div><div class="role">Patiente · Casablanca</div></div></div></div>
+        <div class="testimonial-card fade-up" style="transition-delay:0.1s"><div class="stars">★★★★★</div><p>« Le tableau de bord m'offre une vue claire sur ma journée dès le matin. Je perds moins de temps en administration et plus en soins. »</p><div class="testimonial-author"><div class="author-avatar">K</div><div><div class="name">Dr. Khalil R.</div><div class="role">Cardiologue · Rabat</div></div></div></div>
+        <div class="testimonial-card fade-up" style="transition-delay:0.2s"><div class="stars">★★★★★</div><p>« Les ordonnances numériques changent tout. Mes patients reçoivent leurs prescriptions instantanément sans risque de perte. »</p><div class="testimonial-author"><div class="author-avatar">S</div><div><div class="name">Dr. Sara B.</div><div class="role">Médecin généraliste · Fès</div></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section class="contact-section" id="contact">
+    <div class="contact-inner">
+      <div class="fade-up text-center">
+        <div class="section-tag"><i class="fas fa-envelope-open-text"></i> Contact</div>
+        <h2 class="section-title">Nous sommes à votre écoute</h2>
+        <p class="section-sub" style="margin:0 auto;">Une question, un problème technique, ou vous souhaitez rejoindre MedNex en tant que médecin ? Écrivez-nous.</p>
+      </div>
+      <div class="contact-grid">
+        <div class="contact-info fade-up">
+          <div class="contact-info-item"><div class="contact-info-icon"><i class="fas fa-map-marker-alt"></i></div><div><h5>Adresse</h5><p>GDGSR<br>Khouribga, Maroc</p></div></div>
+          <div class="contact-info-item"><div class="contact-info-icon"><i class="fas fa-phone-alt"></i></div><div><h5>Téléphone</h5><p>+212 6 66 35 96 61</p></div></div>
+          <div class="contact-info-item"><div class="contact-info-icon"><i class="fas fa-envelope"></i></div><div><h5>Email</h5><p>mednexteam57@gmail.com</p></div></div>
+          <div class="contact-info-item"><div class="contact-info-icon"><i class="fas fa-user-md"></i></div><div><h5>Médecins — rejoignez-nous</h5><p>Vous êtes médecin et souhaitez intégrer notre réseau ? Contactez-nous via ce formulaire.</p></div></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
+            <a href="https://www.tiktok.com/@mednex.app?is_from_webapp=1&sender_device=pc" style="width:38px;height:38px;background:var(--light-green);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:0.95rem;text-decoration:none;transition:all var(--transition);" onmouseover="this.style.background='var(--primary)';this.style.color='white';" onmouseout="this.style.background='var(--light-green)';this.style.color='var(--primary)';"><i class="fab fa-tiktok"></i></a>
+            <a href="https://www.instagram.com/mednex_app" style="width:38px;height:38px;background:var(--light-green);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:0.95rem;text-decoration:none;transition:all var(--transition);" onmouseover="this.style.background='var(--primary)';this.style.color='white';" onmouseout="this.style.background='var(--light-green)';this.style.color='var(--primary)';"><i class="fab fa-instagram"></i></a>
+            <a href="https://wa.me/21266359661" style="width:38px;height:38px;background:var(--light-green);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:0.95rem;text-decoration:none;transition:all var(--transition);" onmouseover="this.style.background='var(--primary)';this.style.color='white';" onmouseout="this.style.background='var(--light-green)';this.style.color='var(--primary)';"><i class="fab fa-whatsapp"></i></a>
+          </div>
+        </div>
+        <div class="contact-form-wrap fade-up" style="transition-delay:0.1s;">
+          <h4><i class="fas fa-paper-plane"></i> Envoyer un message</h4>
+          <div id="contactForm">
+            <div class="form-row-2">
+              <div class="form-group-c"><label>Prénom</label><input type="text" id="cFirstName" placeholder="Mohammed" /></div>
+              <div class="form-group-c"><label>Nom</label><input type="text" id="cLastName" placeholder="Benali" /></div>
+            </div>
+            <div class="form-group-c"><label>Email</label><input type="email" id="cEmail" placeholder="vous@exemple.com" /></div>
+            <div class="form-group-c"><label>Téléphone (optionnel)</label><input type="tel" id="cPhone" placeholder="+212 6 00 00 00 00" /></div>
+            <div class="form-group-c"><label>Vous êtes</label><select id="cType"><option value="">Choisir…</option><option value="patient">Patient</option><option value="doctor">Médecin souhaitant s'inscrire</option><option value="other">Autre</option></select></div>
+            <div class="form-group-c"><label>Sujet</label><input type="text" id="cSubject" placeholder="Ex : Problème de connexion, demande d'inscription…" /></div>
+            <div class="form-group-c"><label>Message</label><textarea id="cMessage" placeholder="Décrivez votre demande en détail…"></textarea></div>
+            <button class="contact-send-btn" onclick="sendContact()"><i class="fas fa-paper-plane"></i> Envoyer le message</button>
+          </div>
+          <div class="contact-success" id="contactSuccess">
+            <i class="fas fa-check-circle"></i>
+            <h5>Message envoyé !</h5>
+            <p>Merci de nous avoir contactés. Notre équipe vous répondra dans les 24 heures ouvrées.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Banner -->
+  <section class="cta-section">
+    <h2>Prêt à rejoindre MedNex ?</h2>
+    <p>Créez votre compte gratuitement et accédez à un réseau de médecins qualifiés en quelques secondes.</p>
+    <div class="cta-btns">
+      <a href="patient-register.html" class="btn-primary btn-lg"><i class="fas fa-user-plus"></i> Inscription patient</a>
+      <a href="doctor-login.html" class="btn-outline btn-lg"><i class="fas fa-user-md"></i> Espace médecin</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-col">
+        <a href="#" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:1.1rem;color:var(--primary);margin-bottom:10px;"><i class="fas fa-heartbeat" style="background:var(--primary);color:white;padding:6px 8px;border-radius:10px;font-size:0.9rem;"></i> MedNex</a>
+        <p style="font-size:0.8rem;color:#5A6F66;line-height:1.6;max-width:220px;">La plateforme médicale qui connecte patients et médecins dans tout le Maroc.</p>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <a href="https://www.tiktok.com/@mednex.app?is_from_webapp=1&sender_device=pc" style="width:34px;height:34px;background:var(--bg);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#5A6F66;font-size:0.85rem;text-decoration:none;transition:all var(--transition);" onmouseover="this.style.background='var(--primary)';this.style.color='white';" onmouseout="this.style.background='var(--bg)';this.style.color='#5A6F66';"><i class="fab fa-tiktok"></i></a>
+          <a href="https://www.instagram.com/mednex_app" style="width:34px;height:34px;background:var(--bg);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#5A6F66;font-size:0.85rem;text-decoration:none;transition:all var(--transition);" onmouseover="this.style.background='var(--primary)';this.style.color='white';" onmouseout="this.style.background='var(--bg)';this.style.color='#5A6F66';"><i class="fab fa-instagram"></i></a>
+          <a href="https://wa.me/212666359661" style="width:34px;height:34px;background:var(--bg);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#5A6F66;font-size:0.85rem;text-decoration:none;transition:all var(--transition);" onmouseover="this.style.background='var(--primary)';this.style.color='white';" onmouseout="this.style.background='var(--bg)';this.style.color='#5A6F66';"><i class="fab fa-whatsapp"></i></a>
+        </div>
+      </div>
+      <div class="footer-col"><h6>Navigation</h6><ul><li><a href="#features">Fonctionnalités</a></li><li><a href="#specialties">Spécialités</a></li><li><a href="#how">Comment ça marche</a></li><li><a href="#for-who">Pour qui</a></li><li><a href="#contact">Contact</a></li></ul></div>
+      <div class="footer-col"><h6>Accès</h6><ul><li><a href="patient-login.html">Espace patient</a></li><li><a href="doctor-login.html">Espace médecin</a></li><li><a href="patient-register.html">Créer un compte</a></li></ul></div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 MedNex. Tous droits réservés.</p>
+      <p>Conçu avec <i class="fas fa-heart" style="color:#EF4444;font-size:0.7rem;"></i> pour la santé connectée au Maroc</p>
+    </div>
+  </footer>
+
+  <script>
+    // Hamburger toggle
+    const hamburger = document.getElementById('hamburgerBtn');
+    const navLinks = document.getElementById('navLinks');
+    hamburger.addEventListener('click', () => {
+      const isOpen = navLinks.style.display === 'flex';
+      navLinks.style.display = isOpen ? 'none' : 'flex';
+      navLinks.style.flexDirection = 'column';
+      navLinks.style.position = 'absolute';
+      navLinks.style.top = '64px';
+      navLinks.style.left = '0';
+      navLinks.style.right = '0';
+      navLinks.style.background = 'white';
+      navLinks.style.padding = '16px 20px';
+      navLinks.style.borderBottom = '1px solid var(--border)';
+      navLinks.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
+      navLinks.style.zIndex = '200';
+      navLinks.style.gap = '12px';
+    });
+
+    // fade-up observer
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) entry.target.classList.add('visible');
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+    // Animate stats
+    function animateNum(el, target) {
+      const cleaned = target.replace(/[^0-9]/g, '');
+      if (!cleaned) return;
+      let cur = 0;
+      const num = parseInt(cleaned);
+      const step = Math.max(1, Math.floor(num / 50));
+      const iv = setInterval(() => {
+        cur += step;
+        if (cur >= num) { cur = num; clearInterval(iv); }
+        el.textContent = target.replace(/[0-9]+/, cur.toLocaleString('fr-FR'));
+      }, 25);
+    }
+    setTimeout(() => {
+      document.querySelectorAll('.hero-stat .num').forEach(el => animateNum(el, el.textContent));
+    }, 400);
+
+    // Contact form
+    function sendContact() {
+      const first = document.getElementById('cFirstName').value.trim();
+      const last  = document.getElementById('cLastName').value.trim();
+      const email = document.getElementById('cEmail').value.trim();
+      const msg   = document.getElementById('cMessage').value.trim();
+      if (!first || !last || !email || !msg) {
+        ['cFirstName','cLastName','cEmail','cMessage'].forEach(id => {
+          const el = document.getElementById(id);
+          if (!el.value.trim()) {
+            el.style.borderColor = '#EF4444';
+            el.style.boxShadow = '0 0 0 3px rgba(239,68,68,0.1)';
+            setTimeout(() => { el.style.borderColor = ''; el.style.boxShadow = ''; }, 2000);
+          }
+        });
+        return;
+      }
+      document.getElementById('contactForm').style.display = 'none';
+      document.getElementById('contactSuccess').style.display = 'block';
+    }
+  </script>
+</body>
+</html>
