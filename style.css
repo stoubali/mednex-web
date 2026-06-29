@@ -117,7 +117,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: url('/bg.jpg') no-repeat center center;
+    background: url('./bg.jpg') no-repeat center center;
     background-size: cover;
     background-attachment: fixed;
     text-align: center;
