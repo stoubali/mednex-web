@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedNex · Maintenance</title>
+<link rel="icon" href="/chismya.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+*{ margin:0; padding:0; box-sizing:border-box; }
+body{
+  font-family:'Inter',sans-serif;
+  background:linear-gradient(135deg,#0B3D2E 0%,#134F33 50%,#1C7A4D 100%);
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  color:white;
+}
+.card{
+  background:rgba(255,255,255,0.07);
+  backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:32px;
+  padding:56px 48px;
+  max-width:520px;
+  width:100%;
+  text-align:center;
+  animation:fadeUp 0.6s cubic-bezier(0.2,0.9,0.4,1.1) both;
+}
+@keyframes fadeUp{
+  from{ opacity:0; transform:translateY(24px); }
+  to  { opacity:1; transform:translateY(0); }
+}
+.icon-wrap{
+  width:80px;
+  height:80px;
+  background:rgba(255,255,255,0.1);
+  border-radius:24px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:0 auto 28px;
+  font-size:2.2rem;
+  animation:pulse 2.5s ease-in-out infinite;
+}
+@keyframes pulse{
+  0%,100%{ transform:scale(1); opacity:1; }
+  50%{ transform:scale(1.06); opacity:0.8; }
+}
+.logo{
+  height:44px;
+  object-fit:contain;
+  border-radius:10px;
+  margin-bottom:32px;
+  filter:brightness(1.1);
+}
+h1{
+  font-size:2rem;
+  font-weight:800;
+  letter-spacing:-0.5px;
+  margin-bottom:12px;
+}
+.subtitle{
+  font-size:1rem;
+  opacity:0.75;
+  line-height:1.6;
+  margin-bottom:32px;
+}
+.divider{
+  width:48px;
+  height:3px;
+  background:rgba(255,255,255,0.25);
+  border-radius:60px;
+  margin:0 auto 28px;
+}
+.info-row{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:60px;
+  padding:12px 24px;
+  font-size:0.85rem;
+  font-weight:500;
+  opacity:0.9;
+  margin-bottom:12px;
+}
+.info-row i{ opacity:0.7; }
+.contact-link{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-top:24px;
+  color:rgba(255,255,255,0.6);
+  font-size:0.82rem;
+  text-decoration:none;
+  transition:color 0.2s;
+}
+.contact-link:hover{ color:white; }
+
+/* Animated dots */
+.dots span{
+  display:inline-block;
+  width:8px; height:8px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.4);
+  margin:0 3px;
+  animation:blink 1.4s ease-in-out infinite;
+}
+.dots span:nth-child(2){ animation-delay:0.2s; }
+.dots span:nth-child(3){ animation-delay:0.4s; }
+@keyframes blink{
+  0%,80%,100%{ opacity:0.3; transform:scale(0.8); }
+  40%{ opacity:1; transform:scale(1); }
+}
+
+@media(max-width:480px){
+  .card{ padding:36px 24px; }
+  h1{ font-size:1.6rem; }
+}
+</style>
+</head>
+<body>
+<div class="card">
+  <img src="/logo_navbar.png" alt="MedNex" class="logo"
+    onerror="this.src='https://placehold.co/200x60/ffffff/0B3D2E?text=MedNex'">
+
+  <div class="icon-wrap">🔧</div>
+
+  <h1>Site en maintenance</h1>
+  <p class="subtitle">
+    MedNex est temporairement indisponible.<br>
+    Notre équipe travaille pour vous offrir<br>
+    une meilleure expérience.
+  </p>
+
+  <div class="divider"></div>
+
+  <div class="info-row">
+    <i class="fas fa-clock"></i>
+    Retour en ligne très bientôt
+    <div class="dots"><span></span><span></span><span></span></div>
+  </div>
+
+  <div class="info-row">
+    <i class="fas fa-shield-halved"></i>
+    Vos données sont en sécurité
+  </div>
+
+  <br>
+  <a href="mailto:mednexteam57@gmail.com" class="contact-link">
+    <i class="fas fa-envelope"></i>
+    mednexteam57@gmail.com
+  </a>
+</div>
+</body>
+</html>
