@@ -1,0 +1,17 @@
+{
+    "version": 2,
+    "cleanUrls": true,
+    "builds": [
+        {
+            "src": "*.html",
+            "use": "@vercel/static"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/(.*)",
+            "dest": "/$1"
+        }
+    ],
+    "ignoreCommand": "if [ -f package.json ]; then exit 0; else exit 1; fi"
+}
