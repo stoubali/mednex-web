@@ -725,7 +725,7 @@
       <div class="admin-profile">
         <div class="admin-avatar">A</div>
         <div>
-          <div class="admin-name">Administrateur</div>
+          <div class="admin-name" id="adminNameLabel">Administrateur</div>
           <div class="admin-role">Super Admin</div>
         </div>
         <button onclick="adminLogout()" title="Déconnexion" style="margin-left:auto;background:transparent;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:0.9rem;transition:color 0.2s;" onmouseover="this.style.color='rgba(255,255,255,0.8)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">
@@ -1212,14 +1212,39 @@
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   // ── Auth Guard ────────────────────────────────────────────────
-  // Block access unless the admin login page set the session token
+  // Block access unless this is a real authenticated Supabase user
+  // who is also listed in admin_users (RLS enforces this server-side too).
   document.body.style.visibility = 'hidden';
 
-  (function guardAuth() {
+  (async function guardAuth() {
     if (sessionStorage.getItem('mednex_admin_auth') !== 'granted') {
       window.location.replace('admin-login.html');
       return;
     }
+
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      sessionStorage.removeItem('mednex_admin_auth');
+      window.location.replace('admin-login.html');
+      return;
+    }
+
+    const { data: admin, error } = await sb
+      .from('admin_users')
+      .select('id, full_name')
+      .eq('auth_user_id', session.user.id)
+      .single();
+
+    if (error || !admin) {
+      sessionStorage.removeItem('mednex_admin_auth');
+      await sb.auth.signOut();
+      window.location.replace('admin-login.html');
+      return;
+    }
+
+    window.adminFullName = admin.full_name;
+    const nameLabel = document.getElementById('adminNameLabel');
+    if (nameLabel && admin.full_name) nameLabel.textContent = admin.full_name;
     document.body.style.visibility = 'visible';
     bootAdmin();
   })();

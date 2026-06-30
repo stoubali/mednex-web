@@ -311,12 +311,12 @@ body{
   <form class="form" id="loginForm" autocomplete="off">
 
     <div class="input-group">
-      <label><i class="fas fa-user-shield"></i> Identifiant</label>
+      <label><i class="fas fa-user-shield"></i> Email administrateur</label>
       <div class="input-wrap">
         <input
-          type="text"
+          type="email"
           id="username"
-          placeholder="Votre identifiant"
+          placeholder="admin@mednex.com"
           autocomplete="off"
           spellcheck="false"
           required
@@ -361,9 +361,11 @@ body{
 </div>
 
 <script>
-// ── Credentials (hardcoded for internal director use) ──────────
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'said_admin_123';
+// ── Real Supabase Auth (no more hardcoded creds) ────────────────
+const SUPABASE_URL = "https://xisdwbyermvbqjuqjagn.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc2R3Ynllcm12YnFqdXFqYWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzUyOTksImV4cCI6MjA5ODExMTI5OX0.Ixz6hlLsOUkH04uNivcH81P4-MWeIc_pJZTwnAfm57I";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 const SESSION_KEY = 'mednex_admin_auth';
 const MAX_TRIES = 3;
 const LOCKOUT_SECONDS = 60;
@@ -385,10 +387,22 @@ const togglePw  = document.getElementById('togglePw');
 const pwInput   = document.getElementById('password');
 const eyeIcon   = document.getElementById('eyeIcon');
 
-// ── If already authenticated, go straight to dashboard ────────
-if (sessionStorage.getItem(SESSION_KEY) === 'granted') {
-  window.location.replace('admin-dashboard.html');
-}
+// ── If already authenticated as a real admin, go straight to dashboard ──
+(async function checkExistingSession() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  const { data: admin } = await sb
+    .from('admin_users')
+    .select('id')
+    .eq('auth_user_id', session.user.id)
+    .single();
+  if (admin) {
+    sessionStorage.setItem(SESSION_KEY, 'granted');
+    window.location.replace('admin-dashboard.html');
+  } else {
+    await sb.auth.signOut();
+  }
+})();
 
 // ── Check lockout on page load ─────────────────────────────────
 checkLockout();
@@ -471,13 +485,28 @@ form.addEventListener('submit', async (e) => {
     return;
   }
 
-  // Simulate a tiny delay so it doesn't feel instant (brute-force perception)
   loginBtn.disabled = true;
   loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Vérification…';
 
-  await sleep(600);
+  // 1. Real Supabase Auth sign-in
+  const { data: authData, error: authError } = await sb.auth.signInWithPassword({
+    email: user,
+    password: pass
+  });
 
-  if (user === ADMIN_USER && pass === ADMIN_PASS) {
+  let isAdmin = false;
+  if (!authError && authData?.user) {
+    // 2. Confirm this auth user is actually listed as an admin
+    const { data: admin } = await sb
+      .from('admin_users')
+      .select('id')
+      .eq('auth_user_id', authData.user.id)
+      .single();
+    isAdmin = !!admin;
+    if (!isAdmin) await sb.auth.signOut();
+  }
+
+  if (isAdmin) {
     // ✅ Correct — grant session and redirect
     sessionStorage.setItem(SESSION_KEY, 'granted');
     sessionStorage.removeItem('admin_fails');
