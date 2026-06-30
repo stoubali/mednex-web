@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/maintenance-check.js"></script>
 <style>
 *{ margin:0; padding:0; box-sizing:border-box; }
 body{
@@ -109,6 +110,18 @@ const sb = createClient(
   "https://xisdwbyermvbqjuqjagn.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc2R3Ynllcm12YnFqdXFqYWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzUyOTksImV4cCI6MjA5ODExMTI5OX0.Ixz6hlLsOUkH04uNivcH81P4-MWeIc_pJZTwnAfm57I"
 );
+
+// ── Maintenance mode check ────────────────────────────────────
+(async function checkMaintenance() {
+  const { data } = await sb
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'maintenance_mode')
+    .single();
+  if (data?.value === 'true') {
+    window.location.replace('maintenance.html');
+  }
+})();
 
 const errorBox  = document.getElementById("errorBox");
 const errorSpan = errorBox.querySelector("span");
