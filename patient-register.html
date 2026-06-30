@@ -73,8 +73,7 @@ body{ font-family:'Inter','Segoe UI',sans-serif; background:linear-gradient(135d
 </div>
 
 <script>
-const { createClient } = supabase;
-const sb = createClient(
+const sb = window.__mednexSupabase || supabase.createClient(
   "https://xisdwbyermvbqjuqjagn.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc2R3Ynllcm12YnFqdXFqYWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzUyOTksImV4cCI6MjA5ODExMTI5OX0.Ixz6hlLsOUkH04uNivcH81P4-MWeIc_pJZTwnAfm57I"
 );

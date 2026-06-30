@@ -493,7 +493,7 @@
   // ================================================================
   const SUPABASE_URL = 'https://xisdwbyermvbqjuqjagn.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc2R3Ynllcm12YnFqdXFqYWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzUyOTksImV4cCI6MjA5ODExMTI5OX0.Ixz6hlLsOUkH04uNivcH81P4-MWeIc_pJZTwnAfm57I';
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const sb = window.__mednexSupabase || supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   // Guard: hide page content until auth is confirmed
   document.getElementById('app').style.visibility = 'hidden';

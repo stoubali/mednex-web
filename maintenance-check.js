@@ -13,7 +13,13 @@
     return;
   }
 
-  const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // Reuse ONE shared client across the whole page (this script + the page's
+  // own inline script). Creating multiple GoTrueClient instances against the
+  // same storage key corrupts/loses the session on refresh.
+  if (!window.__mednexSupabase) {
+    window.__mednexSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+  const _sb = window.__mednexSupabase;
 
   // Never block the admin pages themselves
   const path = window.location.pathname.toLowerCase();
