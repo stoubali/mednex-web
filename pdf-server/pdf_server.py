@@ -16,7 +16,7 @@ import logging
 import os
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["https://mednex-web.vercel.app"])
 
 # Secret token — change this to any long random string you choose
 PDF_SECRET = os.environ.get("PDF_SECRET", "mednex-pdf-secret-2024-xK9#mP2$")
