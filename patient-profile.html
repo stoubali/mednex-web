@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mon Profil - MedNex</title>
+<link rel="icon" href="/chismya.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/maintenance-check.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#134F33;--secondary:#1C7A4D;--light-green:#EAF7EF;--bg:#F7FAF8;--border:#E5ECE8;--success:#22C55E;--danger:#EF4444;--radius-lg:28px;--radius-md:18px;--transition:0.25s cubic-bezier(.25,.46,.45,.94)}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:#0B1E18;min-height:100vh;padding:20px;display:flex;justify-content:center}
+.wrap{max-width:640px;width:100%}
+.back-link{display:inline-flex;align-items:center;gap:8px;color:var(--primary);text-decoration:none;font-weight:600;font-size:0.9rem;margin-bottom:20px}
+.back-link:hover{text-decoration:underline}
+.card{background:white;border-radius:var(--radius-lg);padding:36px 32px;border:1px solid var(--border);box-shadow:0 20px 40px -12px rgba(0,32,16,0.08)}
+.header{display:flex;align-items:center;gap:16px;margin-bottom:28px;padding-bottom:24px;border-bottom:1px solid var(--border)}
+.avatar-lg{width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,var(--primary),var(--secondary));color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.6rem}
+.header h1{font-size:1.4rem;font-weight:800;color:#0B1E18}
+.header p{font-size:0.85rem;color:#5A6F66}
+.form-group{margin-bottom:18px}
+label{display:block;font-weight:600;font-size:0.8rem;color:#5A6F66;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px}
+input,select{width:100%;padding:12px 16px;border-radius:60px;border:1.5px solid var(--border);font-family:inherit;font-size:0.9rem;outline:none;transition:all var(--transition)}
+input:focus,select:focus{border-color:var(--secondary);box-shadow:0 0 0 4px rgba(28,122,77,0.1)}
+input:disabled{background:#f0f4f2;color:#8A9E96}
+.actions{display:flex;gap:12px;margin-top:28px;justify-content:flex-end}
+.btn-primary{background:var(--primary);border:none;color:white;padding:12px 28px;border-radius:60px;font-weight:700;font-size:0.9rem;cursor:pointer;transition:all var(--transition);display:inline-flex;align-items:center;gap:8px}
+.btn-primary:hover{background:var(--secondary);transform:scale(0.98)}
+.btn-primary:disabled{opacity:0.6;cursor:not-allowed}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:#1A3A2E;padding:12px 24px;border-radius:60px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.9rem}
+.btn-outline:hover{border-color:var(--primary);background:var(--light-green)}
+.toast-container{position:fixed;bottom:30px;right:30px;z-index:9999}
+.toast{padding:14px 24px;border-radius:60px;background:white;box-shadow:0 12px 32px rgba(0,0,0,0.1);font-weight:500;font-size:0.9rem;display:flex;align-items:center;gap:10px;border-left:4px solid var(--primary)}
+.toast.success{border-left-color:var(--success)}
+.toast.error{border-left-color:var(--danger)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="patient-dashboard.html" class="back-link"><i class="fas fa-arrow-left"></i> Retour au tableau de bord</a>
+  <div class="card" id="profileCard" style="visibility:hidden;">
+    <div class="header">
+      <div class="avatar-lg" id="avatarLg">P</div>
+      <div>
+        <h1 id="headerName">Mon Profil</h1>
+        <p>Gérez vos informations personnelles</p>
+      </div>
+    </div>
+
+    <div class="form-group"><label>Nom complet</label><input type="text" id="fullName"></div>
+    <div class="form-group"><label>Email</label><input type="email" id="email" disabled></div>
+    <div class="form-group"><label>Téléphone</label><input type="tel" id="phone"></div>
+    <div class="form-group"><label>Date de naissance</label><input type="date" id="birthDate"></div>
+    <div class="form-group">
+      <label>Sexe</label>
+      <select id="gender"><option value="Homme">Homme</option><option value="Femme">Femme</option></select>
+    </div>
+
+    <div class="actions">
+      <a href="patient-dashboard.html" class="btn-outline">Annuler</a>
+      <button class="btn-primary" id="saveBtn" onclick="saveProfile()"><i class="fas fa-save"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const sb = window.__mednexSupabase || supabase.createClient(
+  "https://xisdwbyermvbqjuqjagn.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc2R3Ynllcm12YnFqdXFqYWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzUyOTksImV4cCI6MjA5ODExMTI5OX0.Ixz6hlLsOUkH04uNivcH81P4-MWeIc_pJZTwnAfm57I"
+);
+const $ = id => document.getElementById(id);
+let patientId;
+
+function showToast(type, msg) {
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<i class="fas ${type==='success'?'fa-check-circle':'fa-times-circle'}"></i> ${msg}`;
+  $('toastContainer').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = 'patient-login.html'; return; }
+
+  const { data: patient } = await sb.from('patients').select('*').eq('auth_user_id', session.user.id).single();
+  if (!patient) { window.location.href = 'patient-login.html'; return; }
+
+  patientId = patient.id;
+  $('fullName').value = patient.full_name || '';
+  $('email').value = patient.email || '';
+  $('phone').value = patient.phone || '';
+  $('birthDate').value = patient.birth_date || '';
+  $('gender').value = patient.gender || 'Homme';
+  $('avatarLg').textContent = (patient.full_name || 'P').charAt(0).toUpperCase();
+  $('headerName').textContent = patient.full_name || 'Mon Profil';
+  $('profileCard').style.visibility = 'visible';
+})();
+
+async function saveProfile() {
+  const full_name = $('fullName').value.trim();
+  const phone = $('phone').value.trim();
+  const birth_date = $('birthDate').value;
+  const gender = $('gender').value;
+
+  if (!full_name || full_name.length < 3) { showToast('error', 'Nom complet invalide'); return; }
+  if (!phone) { showToast('error', 'Téléphone requis'); return; }
+
+  const btn = $('saveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement…';
+
+  const { error } = await sb.from('patients').update({ full_name, phone, birth_date, gender }).eq('id', patientId);
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-save"></i> Enregistrer';
+
+  if (error) { showToast('error', error.message); return; }
+  showToast('success', 'Profil mis à jour');
+}
+</script>
+</body>
+</html>
