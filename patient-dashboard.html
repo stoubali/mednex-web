@@ -231,7 +231,14 @@
         <div class="empty-state"><i class="fas fa-spinner fa-spin"></i> Chargement…</div>
       </div>
     </div>
-
+    <div class="glass" style="padding:22px;margin-bottom:32px;">
+  <div class="section-header">
+    <h3><i class="fas fa-star" style="color:var(--primary);"></i> Mes Avis</h3>
+  </div>
+  <div id="pastApptsList">
+    <div class="empty-state"><i class="fas fa-spinner fa-spin"></i> Chargement…</div>
+  </div>
+</div>
     <!-- Modal: Appointment Details -->
     <div class="modal-overlay" id="apptModal">
       <div class="modal-box">
@@ -243,7 +250,18 @@
         </div>
       </div>
     </div>
-
+    <div class="modal-overlay" id="reviewModal">
+  <div class="modal-box">
+    <h3><i class="fas fa-star" style="color:#F59E0B;"></i> Laisser un avis</h3>
+    <p class="text-muted" id="reviewDoctorLabel" style="margin-bottom:14px;"></p>
+    <div style="display:flex;gap:6px;margin-bottom:18px;" id="starPicker"></div>
+    <textarea id="reviewComment" placeholder="Partagez votre expérience (optionnel)…" style="width:100%;min-height:100px;padding:12px 16px;border-radius:16px;border:1px solid var(--border);font-family:inherit;font-size:0.9rem;outline:none;resize:vertical;"></textarea>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeModal('reviewModal')">Annuler</button>
+      <button class="btn-primary" id="submitReviewBtn" onclick="submitReview()"><i class="fas fa-paper-plane"></i> Envoyer</button>
+    </div>
+  </div>
+</div>
     <div class="toast-container" id="toastContainer"></div>
   </div>
 
@@ -378,6 +396,111 @@
       </div>`;
     }).join('');
   }
+  let selectedRating = 0;
+let reviewApptId = null;
+let myReviewsMap = {};
+let pastApptsMap = {};
+
+function starsHTML(rating, size) {
+  rating = Math.round(Number(rating) || 0);
+  size = size || '0.85rem';
+  let html = '';
+  for (let i = 1; i <= 5; i++) html += `<i class="fa${i<=rating?'s':'r'} fa-star" style="color:#F59E0B;font-size:${size};"></i>`;
+  return html;
+}
+
+function renderStarPicker() {
+  const wrap = $('starPicker');
+  wrap.innerHTML = '';
+  for (let i = 1; i <= 5; i++) {
+    const star = document.createElement('i');
+    star.className = i <= selectedRating ? 'fas fa-star' : 'far fa-star';
+    star.style.cssText = 'color:#F59E0B;font-size:1.6rem;cursor:pointer;';
+    star.onclick = () => { selectedRating = i; renderStarPicker(); };
+    wrap.appendChild(star);
+  }
+}
+
+async function loadPastAppointments() {
+  const today = new Date().toISOString().split('T')[0];
+  const { data: past } = await sb.from('appointment_details').select('*')
+    .eq('patient_id', patientId).lt('date', today).eq('status', 'confirmed')
+    .order('date', { ascending: false }).limit(20);
+
+  const { data: myReviews } = await sb.from('reviews').select('*').eq('patient_id', patientId);
+  myReviewsMap = {};
+  (myReviews || []).forEach(r => { myReviewsMap[r.appointment_id] = r; });
+
+  pastApptsMap = {};
+  (past || []).forEach(a => { pastApptsMap[a.id] = a; });
+
+  const el = $('pastApptsList');
+  if (!past || !past.length) {
+    el.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-check"></i>Aucun rendez-vous passé</div>';
+    return;
+  }
+
+  el.innerHTML = past.map(a => {
+    const existing = myReviewsMap[a.id];
+    return `<div class="appt-item" style="border-left-color:${existing?'#F59E0B':'var(--border)'};">
+      <div class="appt-info">
+        <h5>${esc(a.doctor_name)}</h5>
+        <div class="meta">${esc(a.doctor_specialty)} · ${esc(a.date)}</div>
+        ${existing ? `<div class="meta" style="margin-top:4px;">${starsHTML(existing.rating,'0.8rem')} ${existing.comment ? '· ' + esc(existing.comment) : ''}</div>` : ''}
+      </div>
+      <button class="btn-outline" style="white-space:nowrap;" onclick="openReviewModal('${esc(a.id)}','${esc(a.doctor_name)}')">
+        <i class="fas fa-star"></i> ${existing ? 'Modifier' : 'Laisser un avis'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function openReviewModal(apptId, doctorName) {
+  reviewApptId = apptId;
+  const existing = myReviewsMap[apptId];
+  selectedRating = existing ? existing.rating : 0;
+  $('reviewDoctorLabel').textContent = `Dr. ${doctorName}`;
+  $('reviewComment').value = existing ? (existing.comment || '') : '';
+  renderStarPicker();
+  $('reviewModal').classList.add('active');
+}
+
+async function submitReview() {
+  if (!selectedRating) { showToast('error', 'Sélectionnez une note'); return; }
+  const appt = pastApptsMap[reviewApptId];
+  if (!appt) return;
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = 'patient-login.html'; return; }
+  await sb.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+
+  const comment = $('reviewComment').value.trim();
+  const btn = $('submitReviewBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Envoi…';
+
+  const existing = myReviewsMap[reviewApptId];
+  let error;
+  if (existing) {
+    ({ error } = await sb.from('reviews').update({ rating: selectedRating, comment }).eq('id', existing.id));
+  } else {
+    ({ error } = await sb.from('reviews').insert([{
+      appointment_id: reviewApptId,
+      doctor_id: appt.doctor_id,
+      patient_id: patientId,
+      rating: selectedRating,
+      comment
+    }]));
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-paper-plane"></i> Envoyer';
+
+  if (error) { showToast('error', error.message); return; }
+  showToast('success', existing ? 'Avis mis à jour' : 'Merci pour votre avis !');
+  closeModal('reviewModal');
+  await loadPastAppointments();
+}
 
   // ── Open appointment modal ────────────────────────────────────
   function openApptModal(apptId) {
@@ -596,30 +719,32 @@
 
   // ── Doctors for booking ───────────────────────────────────────
   async function loadDoctors() {
-    const specialty = $('specialtySelect').value;
-    selectedDoctorId = null;
-    selectedDoctorAvailId = null;
-    selectedSlot = null;
-    $('slotGrid').innerHTML = '<div style="font-size:0.8rem;color:#5A6F66;padding:8px;">Sélectionnez un médecin et une date</div>';
+  const specialty = $('specialtySelect').value;
+  selectedDoctorId = null;
+  selectedDoctorAvailId = null;
+  selectedSlot = null;
+  $('slotGrid').innerHTML = '<div style="font-size:0.8rem;color:#5A6F66;padding:8px;">Sélectionnez un médecin et une date</div>';
 
-    let query = sb.from('doctors').select('id,full_name,specialty,city').eq('status','approved').order('full_name');
-    if (specialty) query = query.eq('specialty', specialty);
+  let query = sb.from('doctors').select('id,full_name,specialty,city,avg_rating,review_count').eq('status','approved').order('full_name');
+  if (specialty) query = query.eq('specialty', specialty);
 
-    const { data } = await query;
-    animateCount($('kpiDoctors'), data?.length || 0);
+  const { data } = await query;
+  animateCount($('kpiDoctors'), data?.length || 0);
 
-    if (!data?.length) {
-      $('doctorGrid').innerHTML = '<div class="empty-state"><i class="fas fa-user-md"></i>Aucun médecin disponible</div>';
-      return;
-    }
-    $('doctorGrid').innerHTML = data.map(d => `
-      <div class="doctor-card" id="doc-${d.id}" onclick="selectDoctor('${d.id}','${d.full_name.replace(/'/g,"\\'")}')">
-        <div class="doc-avatar">${d.full_name.charAt(0)}</div>
-        <h5>${d.full_name}</h5>
-        <div class="specialty">${d.specialty}</div>
-        ${d.city?`<div class="specialty" style="margin-top:2px;"><i class="fas fa-map-marker-alt"></i> ${d.city}</div>`:''}
-      </div>`).join('');
+  if (!data?.length) {
+    $('doctorGrid').innerHTML = '<div class="empty-state"><i class="fas fa-user-md"></i>Aucun médecin disponible</div>';
+    return;
   }
+  $('doctorGrid').innerHTML = data.map(d => `
+    <div class="doctor-card" id="doc-${d.id}" onclick="selectDoctor('${d.id}','${d.full_name.replace(/'/g,"\\'")}')">
+      <div class="doc-avatar">${d.full_name.charAt(0)}</div>
+      <h5>${d.full_name}</h5>
+      <div class="specialty">${d.specialty}</div>
+      ${d.city?`<div class="specialty" style="margin-top:2px;"><i class="fas fa-map-marker-alt"></i> ${d.city}</div>`:''}
+      <div style="margin-top:6px;font-size:0.75rem;">${starsHTML(d.avg_rating,'0.7rem')} <span style="color:#5A6F66;">(${d.review_count||0})</span></div>
+      <a href="doctor-view.html?id=${d.id}" target="_blank" onclick="event.stopPropagation()" style="display:inline-block;margin-top:6px;font-size:0.7rem;color:var(--primary);text-decoration:none;font-weight:600;"><i class="fas fa-eye"></i> Voir le profil</a>
+    </div>`).join('');
+}
 
   function selectDoctor(docId, docName) {
     selectedDoctorId = docId;
@@ -743,12 +868,24 @@
 
   // ── Init ──────────────────────────────────────────────────────
   (async function init() {
-    $('bookingDate').value = new Date().toISOString().split('T')[0];
-    await loadPatientInfo();
-    await Promise.all([loadAppointments(), loadRecords(), loadPrescriptions(), loadSpecialties()]);
-    await loadDoctors();
-    startAutoRefresh(); // start the auto-refresh cycle
-  })();
+  $('bookingDate').value = new Date().toISOString().split('T')[0];
+  await loadPatientInfo();
+  await Promise.all([loadAppointments(), loadRecords(), loadPrescriptions(), loadSpecialties(), loadPastAppointments()]);
+  await loadDoctors();
+
+  const params = new URLSearchParams(window.location.search);
+  const preselectId = params.get('doctor');
+  if (preselectId) {
+    const card = document.getElementById(`doc-${preselectId}`);
+    if (card) {
+      const { data: d } = await sb.from('doctors').select('full_name').eq('id', preselectId).single();
+      if (d) selectDoctor(preselectId, d.full_name);
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  startAutoRefresh();
+})();
 
   // Expose globals — inside bootApp() so functions exist when assigned
   window.logout                  = logout;
@@ -762,6 +899,8 @@
   window.confirmBooking          = confirmBooking;
   window.showToast               = showToast;
   window.downloadPrescriptionPDF = downloadPrescriptionPDF;
+  window.openReviewModal = openReviewModal;
+  window.submitReview    = submitReview;
 
   } // end bootApp()
   </script>

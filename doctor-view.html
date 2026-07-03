@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profil Médecin - MedNex</title>
+<link rel="icon" href="/chismya.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/maintenance-check.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#134F33;--secondary:#1C7A4D;--light-green:#EAF7EF;--bg:#F7FAF8;--border:#E5ECE8;--radius-lg:28px;--transition:0.25s cubic-bezier(.25,.46,.45,.94)}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:#0B1E18;min-height:100vh;padding:20px;display:flex;justify-content:center}
+.wrap{max-width:720px;width:100%}
+.back-link{display:inline-flex;align-items:center;gap:8px;color:var(--primary);text-decoration:none;font-weight:600;font-size:0.9rem;margin-bottom:20px}
+.back-link:hover{text-decoration:underline}
+.hero-card{background:linear-gradient(135deg,#0B3D2E,#134F33,#1C7A4D);border-radius:var(--radius-lg);padding:36px 32px;color:white;margin-bottom:20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.avatar-xl{width:80px;height:80px;border-radius:24px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:2rem;flex-shrink:0}
+.hero-card h1{font-size:1.6rem;font-weight:800;margin-bottom:4px}
+.hero-card .spec{font-size:0.9rem;opacity:0.85;margin-bottom:8px}
+.rating-row{display:flex;align-items:center;gap:8px;font-size:0.9rem;flex-wrap:wrap}
+.rating-row .count{opacity:0.75}
+.card{background:white;border-radius:var(--radius-lg);padding:28px 30px;border:1px solid var(--border);margin-bottom:20px}
+.card h3{font-size:1rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.info-row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.88rem}
+.info-row:last-child{border-bottom:none}
+.info-row i{color:var(--primary);width:18px}
+.review-item{padding:16px 0;border-bottom:1px solid var(--border)}
+.review-item:last-child{border-bottom:none}
+.review-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px}
+.review-author{font-weight:600;font-size:0.85rem}
+.review-date{font-size:0.75rem;color:#5A6F66}
+.review-comment{font-size:0.85rem;color:#3A5A4E;line-height:1.5}
+.btn-primary{background:white;color:var(--primary);border:none;padding:12px 28px;border-radius:60px;font-weight:700;font-size:0.9rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.btn-primary:hover{transform:scale(0.98)}
+.empty-state{text-align:center;padding:30px 10px;color:#5A6F66}
+.empty-state i{font-size:1.8rem;opacity:0.4;display:block;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="index.html" class="back-link"><i class="fas fa-arrow-left"></i> Retour à l'accueil</a>
+
+  <div class="hero-card" id="heroCard" style="visibility:hidden;">
+    <div class="avatar-xl" id="avatarXl">D</div>
+    <div style="flex:1;min-width:200px;">
+      <h1 id="docName">Dr. …</h1>
+      <div class="spec" id="docSpecCity">…</div>
+      <div class="rating-row">
+        <span id="ratingStars"></span>
+        <strong id="ratingValue">–</strong>
+        <span class="count" id="ratingCount">(0 avis)</span>
+      </div>
+    </div>
+    <a href="#" class="btn-primary" id="bookBtn"><i class="fas fa-calendar-plus"></i> Prendre rendez-vous</a>
+  </div>
+
+  <div class="card" id="aboutCard" style="display:none;">
+    <h3><i class="fas fa-id-card" style="color:var(--primary);"></i> À propos</h3>
+    <p id="docDescription" style="font-size:0.88rem;color:#3A5A4E;line-height:1.6;"></p>
+  </div>
+
+  <div class="card">
+    <h3><i class="fas fa-info-circle" style="color:var(--primary);"></i> Informations</h3>
+    <div class="info-row"><i class="fas fa-map-marker-alt"></i> <span id="infoAddress">–</span></div>
+    <div class="info-row"><i class="fas fa-stethoscope"></i> <span id="infoSpecialty">–</span></div>
+  </div>
+
+  <div class="card">
+    <h3><i class="fas fa-comment-medical" style="color:var(--primary);"></i> Avis des patients</h3>
+    <div id="reviewsList"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div></div>
+  </div>
+</div>
+
+<script>
+const sb = window.__mednexSupabase || supabase.createClient(
+  "https://xisdwbyermvbqjuqjagn.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc2R3Ynllcm12YnFqdXFqYWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzUyOTksImV4cCI6MjA5ODExMTI5OX0.Ixz6hlLsOUkH04uNivcH81P4-MWeIc_pJZTwnAfm57I"
+);
+const $ = id => document.getElementById(id);
+function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function starsHTML(rating,size){rating=Math.round(Number(rating)||0);size=size||'1rem';let h='';for(let i=1;i<=5;i++)h+=`<i class="fa${i<=rating?'s':'r'} fa-star" style="color:#F59E0B;font-size:${size};"></i>`;return h;}
+
+const params = new URLSearchParams(window.location.search);
+const docId = params.get('id');
+
+(async function init() {
+  if (!docId) { document.body.innerHTML = '<p style="padding:40px;text-align:center;">Médecin introuvable.</p>'; return; }
+
+  const { data: doc, error } = await sb.from('doctors').select('*').eq('id', docId).eq('status','approved').single();
+  if (error || !doc) { document.body.innerHTML = '<p style="padding:40px;text-align:center;">Médecin introuvable ou non disponible.</p>'; return; }
+
+  $('avatarXl').textContent = (doc.full_name||'D').charAt(0).toUpperCase();
+  $('docName').textContent = `Dr. ${doc.full_name}`;
+  $('docSpecCity').textContent = `${doc.specialty}${doc.city ? ' · '+doc.city : ''}`;
+  $('ratingStars').innerHTML = starsHTML(doc.avg_rating, '1.1rem');
+  $('ratingValue').textContent = doc.avg_rating ? Number(doc.avg_rating).toFixed(1) : '–';
+  $('ratingCount').textContent = `(${doc.review_count||0} avis)`;
+  $('infoAddress').textContent = doc.clinic_address || doc.city || 'Adresse non renseignée';
+  $('infoSpecialty').textContent = doc.specialty || '–';
+
+  if (doc.description) {
+    $('docDescription').textContent = doc.description;
+    $('aboutCard').style.display = 'block';
+  }
+
+  const { data: { session } } = await sb.auth.getSession();
+  $('bookBtn').href = session ? `patient-dashboard.html?doctor=${doc.id}` : 'patient-login.html';
+
+  $('heroCard').style.visibility = 'visible';
+
+  const { data: reviews } = await sb.from('public_reviews').select('*')
+    .eq('doctor_id', docId).order('created_at', { ascending: false }).limit(50);
+
+  const list = $('reviewsList');
+  if (!reviews || !reviews.length) {
+    list.innerHTML = '<div class="empty-state"><i class="fas fa-comment-slash"></i>Aucun avis pour le moment</div>';
+    return;
+  }
+
+  list.innerHTML = reviews.map(r => `
+    <div class="review-item">
+      <div class="review-head">
+        <span class="review-author">${esc(r.reviewer_first_name||'Patient')} ${esc(r.reviewer_last_initial ? r.reviewer_last_initial+'.' : '')}</span>
+        <span class="review-date">${new Date(r.created_at).toLocaleDateString('fr-FR')}</span>
+      </div>
+      ${starsHTML(r.rating,'0.85rem')}
+      ${r.comment ? `<p class="review-comment" style="margin-top:6px;">${esc(r.comment)}</p>` : ''}
+    </div>`).join('');
+})();
+</script>
+</body>
+</html>

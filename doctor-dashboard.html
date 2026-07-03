@@ -215,6 +215,7 @@
       <div class="kpi-card"><div class="icon-wrap"><i class="fas fa-check-circle"></i></div><div class="kpi-label">Confirmés</div><div class="kpi-value" id="kpiConfirmed">–</div><div class="kpi-sub">Rendez-vous validés</div></div>
       <div class="kpi-card"><div class="icon-wrap"><i class="fas fa-clock"></i></div><div class="kpi-label">En Attente</div><div class="kpi-value" id="kpiPending">–</div><div class="kpi-sub">À confirmer</div></div>
       <div class="kpi-card"><div class="icon-wrap"><i class="fas fa-calendar-plus"></i></div><div class="kpi-label">Créneaux Libres</div><div class="kpi-value" id="kpiFree">–</div><div class="kpi-sub">Disponibles aujourd'hui</div></div>
+      <div class="kpi-card"><div class="icon-wrap"><i class="fas fa-star"></i></div><div class="kpi-label">Note Moyenne</div><div class="kpi-value" id="kpiRating">–</div><div class="kpi-sub" id="kpiRatingSub">0 avis</div></div>
       <div class="kpi-card"><div class="icon-wrap"><i class="fas fa-chart-pie"></i></div><div class="kpi-label">Taux d'Occupation</div><div class="kpi-value" id="kpiRate">–</div><div class="kpi-sub">Aujourd'hui</div></div>
       <!-- New KPI: Prescriptions Today -->
       <div class="kpi-card"><div class="icon-wrap"><i class="fas fa-file-medical"></i></div><div class="kpi-label">Prescriptions Today</div><div class="kpi-value" id="kpiPrescriptions">0</div><div class="kpi-sub">Générées aujourd'hui</div></div>
@@ -626,6 +627,10 @@
       .eq('prescribed_at', today)
       .eq('is_active', true);
     $('kpiPrescriptions').textContent = prescCount || 0;
+
+    const { data: docRow } = await sb.from('doctors').select('avg_rating,review_count').eq('id', doctorId).single();
+    $('kpiRating').textContent = docRow?.avg_rating ? Number(docRow.avg_rating).toFixed(1) : '–';
+    $('kpiRatingSub').textContent = `${docRow?.review_count||0} avis`;
   }
 
   // ── Timeline ──────────────────────────────────────────────────
