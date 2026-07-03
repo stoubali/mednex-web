@@ -232,18 +232,18 @@
         </div>
       </div>
 
-      <div class="glass" style="padding:24px;">
-        <h4 style="font-weight:600;color:#0B1E18;margin-bottom:16px;"><i class="fas fa-plus-circle" style="color:var(--primary);"></i> Ajouter Disponibilité</h4>
-        <div class="avail-form">
-          <div class="form-row">
-            <div class="form-group"><label>Date</label><input type="date" id="availDate" /></div>
-            <div class="form-group"><label>Début</label><input type="time" id="availStart" value="08:00" /></div>
-            <div class="form-group"><label>Fin</label><input type="time" id="availEnd" value="10:00" /></div>
-          </div>
-          <div class="avail-preview"><i class="fas fa-calculator"></i><span id="slotCount">8</span> créneaux seront générés</div>
-          <button class="btn-primary" id="addAvailBtn" onclick="handleAddAvailability()"><i class="fas fa-save"></i> Ajouter Disponibilité</button>
-        </div>
-      </div>
+      <div class="glass" style="padding:24px;margin-bottom:32px;">
+  <div class="table-toolbar">
+    <h4 style="font-weight:600;color:#0B1E18;"><i class="fas fa-user-md" style="color:var(--primary);"></i> <span id="patientsTableTitle">Patients Aujourd'hui</span></h4>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <button class="btn-icon" onclick="shiftTableDate(-1)" title="Jour précédent"><i class="fas fa-chevron-left"></i></button>
+      <input type="date" id="tableDate" style="padding:9px 14px;border:1px solid var(--border);border-radius:60px;font-family:inherit;font-size:0.85rem;" onchange="onTableDateChange()" />
+      <button class="btn-icon" onclick="shiftTableDate(1)" title="Jour suivant"><i class="fas fa-chevron-right"></i></button>
+      <button class="btn-outline" onclick="goToTodayTable()">Aujourd'hui</button>
+      <input class="search-input" id="tableSearch" placeholder="Rechercher patient…" oninput="filterTable()" />
+      <button class="btn-outline" onclick="exportCSV()"><i class="fas fa-file-export"></i> CSV</button>
+    </div>
+  </div>
     </div>
 
     <div class="glass" style="padding:24px;margin-bottom:32px;">
@@ -667,17 +667,49 @@
   }
 
   // ── Patients table ────────────────────────────────────────────
+  // ── Patients table (date-navigable) ─────────────────────────────
+  let currentTableDate = new Date().toISOString().split('T')[0];
+
   async function loadPatients() {
-    const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await sb.from('appointment_details').select('*').eq('doctor_id', doctorId).eq('date', today).order('start_time');
+    $('tableDate').value = currentTableDate;
+    updateTableTitle();
+    const { data, error } = await sb.from('appointment_details').select('*').eq('doctor_id', doctorId).eq('date', currentTableDate).order('start_time');
     allAppointments = data || [];
     renderPatients(allAppointments);
+  }
+
+  function updateTableTitle() {
+    const today = new Date().toISOString().split('T')[0];
+    let label;
+    if (currentTableDate === today) label = "Patients Aujourd'hui";
+    else {
+      const d = new Date(currentTableDate + 'T00:00:00');
+      label = 'Patients — ' + d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    $('patientsTableTitle').textContent = label;
+  }
+
+  function shiftTableDate(days) {
+    const d = new Date(currentTableDate + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    currentTableDate = d.toISOString().split('T')[0];
+    loadPatients();
+  }
+
+  function onTableDateChange() {
+    currentTableDate = $('tableDate').value;
+    loadPatients();
+  }
+
+  function goToTodayTable() {
+    currentTableDate = new Date().toISOString().split('T')[0];
+    loadPatients();
   }
 
   function renderPatients(data) {
     const statusMap = {confirmed:'badge-success',pending:'badge-warning',completed:'badge-info',cancelled:'badge-danger'};
     if (!data.length) {
-      $('patientTableBody').innerHTML = '<tr class="loading-row"><td colspan="7"><i class="fas fa-users"></i> Aucun patient aujourd\'hui</td></tr>';
+      $('patientTableBody').innerHTML = '<tr class="loading-row"><td colspan="7"><i class="fas fa-users"></i> Aucun patient ce jour-là</td></tr>';
       return;
     }
     $('patientTableBody').innerHTML = data.map(p => `
@@ -1570,6 +1602,9 @@
   window.updatePrescription     = updatePrescription;
   window.generatePDF            = generatePDF;
   window.filterTable            = filterTable;
+  window.shiftTableDate  = shiftTableDate;
+  window.onTableDateChange = onTableDateChange;
+  window.goToTodayTable  = goToTodayTable;
 
   } // end bootApp()
   </script>
