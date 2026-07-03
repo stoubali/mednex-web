@@ -537,6 +537,12 @@
   function esc(v) {
     return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+  function toLocalDateStr(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 
 
 
@@ -672,7 +678,7 @@
 
   // ── Patients table ────────────────────────────────────────────
   // ── Patients table (date-navigable) ─────────────────────────────
-  let currentTableDate = new Date().toISOString().split('T')[0];
+  let currentTableDate = toLocalDateStr(new Date());
 
   async function loadPatients() {
     $('tableDate').value = currentTableDate;
@@ -696,7 +702,7 @@
   function shiftTableDate(days) {
     const d = new Date(currentTableDate + 'T00:00:00');
     d.setDate(d.getDate() + days);
-    currentTableDate = d.toISOString().split('T')[0];
+    currentTableDate = toLocalDateStr(d);
     loadPatients();
   }
 
@@ -706,7 +712,7 @@
   }
 
   function goToTodayTable() {
-    currentTableDate = new Date().toISOString().split('T')[0];
+    currentTableDate = toLocalDateStr(new Date());
     loadPatients();
   }
 
