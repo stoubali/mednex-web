@@ -1,6 +1,7 @@
 """
-MedNex PDF Generation Server — Redesigned
-Generates professional, beautifully styled prescription PDFs using canvas API.
+MedNex PDF Generation Server — Redesigned to match the official
+MedNex prescription-pad template (vector logo, mint header bar,
+boxed patient/date/médecin fields, heartbeat-line bullets).
 """
 
 from flask import Flask, request, send_file, jsonify
@@ -11,108 +12,152 @@ from reportlab.lib import colors
 from reportlab.pdfgen import canvas as rl_canvas
 from datetime import datetime
 import io
-import logging
-
 import os
+import logging
 
 app = Flask(__name__)
 CORS(app, origins=["https://mednex-web.vercel.app"])
 
-# Secret token — change this to any long random string you choose
 PDF_SECRET = os.environ.get("PDF_SECRET", "mednex-pdf-secret-2024-xK9#mP2$")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ── Brand palette ─────────────────────────────────────────────────────────────
-PRIMARY     = colors.HexColor('#0B3D2E')
-ACCENT      = colors.HexColor('#2c7a5e')
-ACCENT_DARK = colors.HexColor('#1e6b50')
-LIGHT_BG    = colors.HexColor('#EAF7EF')
-PILL_BG     = colors.HexColor('#d4ede2')
-BORDER      = colors.HexColor('#D1E8DC')
-DIVIDER     = colors.HexColor('#E5ECE8')
-TEXT_DARK   = colors.HexColor('#0B1E18')
-TEXT_MUTED  = colors.HexColor('#5A6F66')
+# ── Brand palette (matched to the MedNex prescription-pad design) ────────────
+PRIMARY     = colors.HexColor('#0B3D2E')   # deep green — logo, headings
+ACCENT      = colors.HexColor('#2c7a5e')   # mid green — pulse line, icons
+HEADER_BG   = colors.HexColor('#A9D3B7')   # mint green — "ORDRE DE PRESCRIPTION" bar
+BORDER      = colors.HexColor('#CFE6D8')   # light green box borders
+RULE        = colors.HexColor('#88B79B')   # underline / ruled-line color
+TEXT_DARK   = colors.HexColor('#12241C')
+TEXT_MUTED  = colors.HexColor('#5A7568')
 WHITE       = colors.white
-GOLD        = colors.HexColor('#F59E0B')
+WATERMARK   = colors.HexColor('#EFF6F1')
 
-PAGE_W, PAGE_H = A4          # 595.27 x 841.89 pt
-MX = 18 * mm                 # horizontal margin
-MY = 14 * mm                 # vertical margin
-CW = PAGE_W - 2 * MX        # content width
-
-
-# ── Drawing helpers ───────────────────────────────────────────────────────────
-
-def rr(c, x, y, w, h, r=4*mm, fill=None, stroke=None, lw=0.5):
-    """Rounded rectangle (y = top-left corner, grows downward)."""
-    if fill:   c.setFillColor(fill)
-    if stroke: c.setStrokeColor(stroke); c.setLineWidth(lw)
-    p = c.beginPath()
-    p.moveTo(x+r, y)
-    p.lineTo(x+w-r, y)
-    p.arcTo(x+w-2*r, y, x+w, y+2*r, startAng=-90, extent=90)
-    p.lineTo(x+w, y+h-r)
-    p.arcTo(x+w-2*r, y+h-2*r, x+w, y+h, startAng=0, extent=90)
-    p.lineTo(x+r, y+h)
-    p.arcTo(x, y+h-2*r, x+2*r, y+h, startAng=90, extent=90)
-    p.lineTo(x, y+r)
-    p.arcTo(x, y, x+2*r, y+2*r, startAng=180, extent=90)
-    p.close()
-    c.drawPath(p, fill=1 if fill else 0, stroke=1 if stroke else 0)
+PAGE_W, PAGE_H = A4
+MX = 16 * mm
+MY = 14 * mm
+CW = PAGE_W - 2 * MX
 
 
-def rect(c, x, y, w, h, fill=None, stroke=None, lw=0.5):
-    if fill:   c.setFillColor(fill)
-    if stroke: c.setStrokeColor(stroke); c.setLineWidth(lw)
+# ── Low-level drawing helpers ─────────────────────────────────────────────────
+
+def rr(c, x, y, w, h, r=4 * mm, fill=None, stroke=None, lw=0.6):
+    """Rounded rectangle. (x, y) = bottom-left corner."""
+    if fill:
+        c.setFillColor(fill)
+    if stroke:
+        c.setStrokeColor(stroke)
+        c.setLineWidth(lw)
+    c.roundRect(x, y, w, h, r, fill=1 if fill else 0, stroke=1 if stroke else 0)
+
+
+def rect(c, x, y, w, h, fill=None, stroke=None, lw=0.6):
+    if fill:
+        c.setFillColor(fill)
+    if stroke:
+        c.setStrokeColor(stroke)
+        c.setLineWidth(lw)
     c.rect(x, y, w, h, fill=1 if fill else 0, stroke=1 if stroke else 0)
 
 
-def wrap_text(c, text, x, y, max_w, font, size, leading):
-    """Word-wrap text. Returns y after last line."""
-    if not text: return y
+def measure_wrap(c, text, max_w, font, size):
+    """Return a list of wrapped lines (no drawing)."""
+    if not text:
+        return []
     c.setFont(font, size)
     words = str(text).split()
-    line = ''
-    for word in words:
-        test = (line + ' ' + word).strip()
+    lines, line = [], ''
+    for w_ in words:
+        test = (line + ' ' + w_).strip()
         if c.stringWidth(test, font, size) <= max_w:
             line = test
         else:
             if line:
-                c.drawString(x, y, line)
-                y -= leading
-            line = word
+                lines.append(line)
+            line = w_
     if line:
-        c.drawString(x, y, line)
+        lines.append(line)
+    return lines
+
+
+def draw_ruled_lines(c, lines, x, top_y, max_w, leading, font='Helvetica', size=9,
+                      color=TEXT_DARK, rule_color=RULE, underline=True):
+    """Draw wrapped lines with a thin ruled underline beneath each (form-style)."""
+    y = top_y
+    c.setFont(font, size)
+    for ln in lines:
+        c.setFillColor(color)
+        c.drawString(x, y, ln)
+        if underline:
+            c.setStrokeColor(rule_color)
+            c.setLineWidth(0.6)
+            c.line(x, y - 1.6 * mm, x + max_w, y - 1.6 * mm)
         y -= leading
     return y
 
 
-def section_bar(c, y, label):
-    """Full-width dark section header. Returns y below bar."""
-    H = 7.5 * mm
-    rr(c, MX, y - H, CW, H, r=3*mm, fill=PRIMARY)
-    rect(c, MX, y - H, CW, H/2, fill=PRIMARY)   # flatten bottom radius
-    c.setFillColor(WHITE)
-    c.setFont('Helvetica-Bold', 7.5)
-    c.drawString(MX + 4*mm, y - 5.2, label)
-    return y - H
+def draw_pulse(c, x, y, w, h, color, lw=1.1):
+    """Small ECG / heartbeat zigzag centred vertically at y, spanning width w."""
+    c.setStrokeColor(color)
+    c.setLineWidth(lw)
+    c.setLineJoin(1)
+    c.setLineCap(1)
+    seg = w / 8.0
+    pts = [
+        (x, y),
+        (x + 2 * seg, y),
+        (x + 3 * seg, y - h * 0.55),
+        (x + 4 * seg, y + h * 0.55),
+        (x + 5 * seg, y - h * 0.18),
+        (x + 6 * seg, y),
+        (x + 8 * seg, y),
+    ]
+    p = c.beginPath()
+    p.moveTo(*pts[0])
+    for pt in pts[1:]:
+        p.lineTo(*pt)
+    c.drawPath(p, fill=0, stroke=1)
 
 
-def pill(c, x, y, text, bg=None, fg=None):
-    """Small pill badge. Returns right edge x."""
-    bg = bg or PILL_BG
-    fg = fg or ACCENT_DARK
-    c.setFont('Helvetica', 7.5)
-    tw = c.stringWidth(text, 'Helvetica', 7.5)
-    px, ph, r2 = 3*mm, 4.5*mm, 2*mm
-    pw = tw + 2*px
-    rr(c, x, y - 0.5*mm, pw, ph, r=r2, fill=bg)
-    c.setFillColor(fg)
-    c.drawString(x + px, y + 2, text)
-    return x + pw
+def draw_logo_icon(c, cx, cy, size, alpha_color=None):
+    """Vector cross + heartbeat-pulse icon, centred at (cx, cy)."""
+    fill_col = alpha_color or PRIMARY
+    arm = size * 0.34
+    r = arm * 0.32
+    rr(c, cx - arm / 2, cy - size / 2, arm, size, r=r, fill=fill_col)
+    rr(c, cx - size / 2, cy - arm / 2, size, arm, r=r, fill=fill_col)
+    if not alpha_color:
+        # Pulse line cut across the cross — white base + accent line for contrast
+        draw_pulse(c, cx - size * 0.5, cy, size * 1.0, size * 0.42, WHITE, lw=1.8)
+        draw_pulse(c, cx - size * 0.5, cy, size * 1.0, size * 0.42, ACCENT, lw=1.0)
+
+
+def draw_logo_header(c, x, y_top):
+    """Draws icon + 'MedNex' wordmark + tagline. Returns block height used."""
+    icon_size = 19 * mm
+    icon_cx = x + icon_size / 2 + 1 * mm
+    icon_cy = y_top - 13 * mm
+    draw_logo_icon(c, icon_cx, icon_cy, icon_size)
+
+    tx = x + icon_size + 8 * mm
+    c.setFillColor(PRIMARY)
+    c.setFont('Helvetica-Bold', 27)
+    c.drawString(tx, y_top - 15 * mm, 'MedNex')
+
+    c.setFont('Helvetica-Oblique', 9)
+    c.setFillColor(TEXT_MUTED)
+    c.drawString(tx, y_top - 21 * mm, 'Votre santé, notre responsabilité')
+
+    return 28 * mm
+
+
+def check_space(c, y, needed, reset_top=True):
+    """Start a new page if the remaining space is insufficient."""
+    if y - needed < MY:
+        c.showPage()
+        y = PAGE_H - MY
+    return y
 
 
 # ── Main PDF builder ──────────────────────────────────────────────────────────
@@ -123,198 +168,221 @@ def create_prescription_pdf(data):
     c.setTitle('Ordonnance Médicale – MedNex')
     c.setAuthor(f"Dr. {data.get('doctor_name', '')}")
 
-    y = PAGE_H - MY   # cursor starts at top
+    y = PAGE_H - MY
 
-    # ── HEADER BANNER ────────────────────────────────────────────────────────
-    BH = 29 * mm
-    rr(c, MX, y - BH, CW, BH, r=5*mm, fill=PRIMARY)
+    # ── LOGO ─────────────────────────────────────────────────────────────────
+    y -= draw_logo_header(c, MX, y) + 4 * mm
 
-    # Icon circle
-    ix, iy = MX + 14*mm, y - BH/2
-    c.setFillColor(ACCENT)
-    c.circle(ix, iy, 9*mm, fill=1, stroke=0)
-    c.setFillColor(WHITE)
-    c.setFont('Helvetica-Bold', 13)
-    c.drawCentredString(ix, iy - 4.5, 'M')
+    # ── TITLE BAR + PATIENT / DATE / MÉDECIN BOX ────────────────────────────
+    TITLE_H = 10 * mm
+    FIELDS_H = 25 * mm
+    CH = TITLE_H + FIELDS_H
 
-    # Brand name
-    c.setFillColor(WHITE)
-    c.setFont('Helvetica-Bold', 20)
-    c.drawString(MX + 27*mm, y - BH/2 + 4, 'MedNex')
-    c.setFont('Helvetica', 8)
-    c.setFillColor(colors.HexColor('#9ecfb5'))
-    c.drawString(MX + 27*mm, y - BH/2 - 8, 'Plateforme médicale connectée')
+    rr(c, MX, y - CH, CW, CH, r=4 * mm, fill=WHITE, stroke=BORDER, lw=0.8)
+    rr(c, MX, y - TITLE_H, CW, TITLE_H, r=4 * mm, fill=HEADER_BG)
+    rect(c, MX, y - TITLE_H, CW, TITLE_H / 2, fill=HEADER_BG)  # flatten bottom corners
+    c.setFillColor(PRIMARY)
+    c.setFont('Helvetica-Bold', 12.5)
+    c.drawString(MX + 6 * mm, y - TITLE_H + 3.3 * mm, 'ORDRE DE PRESCRIPTION')
 
-    # Right tag
-    tag_w, tag_h = 46*mm, 10*mm
-    tag_x = MX + CW - tag_w
-    tag_y = y - BH/2 - tag_h/2
-    rr(c, tag_x, tag_y, tag_w, tag_h, r=2.5*mm, fill=ACCENT)
-    c.setFillColor(WHITE)
-    c.setFont('Helvetica-Bold', 7.5)
-    c.drawCentredString(tag_x + tag_w/2, tag_y + 3.5, 'ORDONNANCE MÉDICALE')
+    field_top = y - TITLE_H
+    col_gap = 8 * mm
+    col_w = (CW - 12 * mm - col_gap) / 2
+    left_x = MX + 6 * mm
+    right_x = MX + 6 * mm + col_w + col_gap
 
-    y -= BH + 6*mm
+    # Left column: PATIENT
+    c.setFont('Helvetica-Bold', 9.5)
+    c.setFillColor(PRIMARY)
+    c.drawString(left_x, field_top - 7 * mm, 'PATIENT :')
+    c.setFont('Helvetica', 9.5)
+    c.setFillColor(TEXT_DARK)
+    c.drawString(left_x + 20 * mm, field_top - 7 * mm, data.get('patient_name', '–'))
+    c.setStrokeColor(RULE)
+    c.setLineWidth(0.6)
+    c.line(left_x, field_top - 8.6 * mm, left_x + col_w, field_top - 8.6 * mm)
 
-    # ── PATIENT / DOCTOR CARDS ────────────────────────────────────────────────
-    cw2 = (CW - 5*mm) / 2
-    lx, rx = MX, MX + cw2 + 5*mm
-    IH = 25*mm
-    strip_h = 7.5*mm
+    c.setFont('Helvetica', 8.5)
+    c.setFillColor(TEXT_MUTED)
+    c.drawString(left_x, field_top - 16.5 * mm, data.get('age_gender', '–'))
+    c.line(left_x, field_top - 18 * mm, left_x + col_w, field_top - 18 * mm)
 
-    for card_x, bg_col, label, name_val, sub_val in [
-        (lx, ACCENT, 'PATIENT',
-         data.get('patient_name', '–'),
-         data.get('age_gender', '–')),
-        (rx, PRIMARY, 'MÉDECIN',
-         f"Dr. {data.get('doctor_name', '–')}",
-         _fmt_date(data.get('date', ''))),
-    ]:
-        rr(c, card_x, y - IH, cw2, IH, r=4*mm, fill=LIGHT_BG, stroke=BORDER, lw=0.6)
-        # Header strip (round top, flat bottom)
-        rr(c, card_x, y - strip_h, cw2, strip_h, r=4*mm, fill=bg_col)
-        rect(c, card_x, y - strip_h, cw2, strip_h/2, fill=bg_col)
-        c.setFillColor(WHITE)
-        c.setFont('Helvetica-Bold', 7)
-        c.drawString(card_x + 4*mm, y - 5.2, label)
+    # Right column: DATE + MÉDECIN
+    c.setFont('Helvetica-Bold', 9.5)
+    c.setFillColor(PRIMARY)
+    c.drawString(right_x, field_top - 7 * mm, 'DATE :')
+    c.setFont('Helvetica', 9.5)
+    c.setFillColor(TEXT_DARK)
+    c.drawString(right_x + 15 * mm, field_top - 7 * mm, _fmt_date_slash(data.get('date', '')))
 
-        c.setFillColor(TEXT_DARK)
-        c.setFont('Helvetica-Bold', 10.5)
-        c.drawString(card_x + 4*mm, y - strip_h - 5.5*mm, name_val)
+    c.setFont('Helvetica-Bold', 9.5)
+    c.setFillColor(PRIMARY)
+    c.drawString(right_x, field_top - 16.5 * mm, 'MÉDECIN :')
+    c.setFont('Helvetica', 9.5)
+    c.setFillColor(TEXT_DARK)
+    c.drawString(right_x + 22 * mm, field_top - 16.5 * mm, f"Dr. {data.get('doctor_name', '–')}")
+    c.setStrokeColor(RULE)
+    c.line(right_x, field_top - 18 * mm, right_x + col_w, field_top - 18 * mm)
 
-        c.setFont('Helvetica', 8)
-        c.setFillColor(TEXT_MUTED)
-        c.drawString(card_x + 4*mm, y - strip_h - 11*mm, sub_val)
+    y -= CH + 6 * mm
 
-    y -= IH + 6*mm
-
-    # ── DIAGNOSIS ─────────────────────────────────────────────────────────────
-    diagnosis = (data.get('diagnosis') or '').strip()
-    if diagnosis:
-        y = section_bar(c, y, 'DIAGNOSTIC')
-        y -= 2*mm
-        c.setFillColor(TEXT_DARK)
-        y = wrap_text(c, diagnosis, MX+4*mm, y-4.5*mm, CW-8*mm,
-                      'Helvetica', 9, 4.8*mm)
-        y -= 4*mm
-
-    # ── CLINICAL NOTES ────────────────────────────────────────────────────────
-    clinical = (data.get('clinical_notes') or '').strip()
-    if clinical:
-        y = section_bar(c, y, 'NOTES CLINIQUES')
-        y -= 2*mm
-        c.setFillColor(TEXT_DARK)
-        y = wrap_text(c, clinical, MX+4*mm, y-4.5*mm, CW-8*mm,
-                      'Helvetica', 9, 4.8*mm)
-        y -= 4*mm
-
-    # ── MEDICATIONS ───────────────────────────────────────────────────────────
+    # ── MÉDICAMENT(S) + DOSAGE & INSTRUCTIONS BOX ───────────────────────────
     meds = [m for m in (data.get('medications') or [])
-            if m.get('name','').strip() not in ('', '–', 'Médicament')]
+            if (m.get('name', '') or '').strip() not in ('', '–', 'Médicament')]
+    clinical = (data.get('clinical_notes') or '').strip()
+
+    pad = 5 * mm
+    heading_h = 6.5 * mm
+    med_row_h = 7 * mm
+    dosage_line_h = 5.6 * mm
+    inner_w = CW - 2 * pad
+
+    dosage_lines = measure_wrap(c, clinical, inner_w, 'Helvetica', 9) if clinical else \
+        measure_wrap(c, 'Selon prescription du médecin.', inner_w, 'Helvetica', 9)
+
+    med_rows_h = max(len(meds), 1) * med_row_h
+    dosage_rows_h = len(dosage_lines) * dosage_line_h
+    box_h = pad * 2 + heading_h + med_rows_h + 3 * mm + heading_h + dosage_rows_h
+
+    y = check_space(c, y, box_h + 40 * mm)
+
+    rr(c, MX, y - box_h, CW, box_h, r=4 * mm, fill=WHITE, stroke=BORDER, lw=0.8)
+
+    cy = y - pad
+    draw_pulse(c, MX + pad, cy - 1.6 * mm, 7 * mm, 3 * mm, ACCENT, lw=1.1)
+    c.setFillColor(PRIMARY)
+    c.setFont('Helvetica-Bold', 10)
+    c.drawString(MX + pad + 9 * mm, cy - 2.2 * mm, 'MÉDICAMENT(S) :')
+    cy -= heading_h
+
     if meds:
-        y = section_bar(c, y, 'MÉDICAMENTS PRESCRITS')
-        y -= 2*mm
-
         for i, med in enumerate(meds):
-            MED_H = 18*mm
-            bg = LIGHT_BG if i % 2 == 0 else WHITE
-            rr(c, MX, y - MED_H, CW, MED_H, r=3*mm, fill=bg, stroke=DIVIDER, lw=0.5)
-
-            # Number badge
-            nr = 4.5*mm
-            cx_ = MX + nr + 3*mm
-            cy_ = y - MED_H/2
-            c.setFillColor(ACCENT)
-            c.circle(cx_, cy_, nr, fill=1, stroke=0)
-            c.setFillColor(WHITE)
-            c.setFont('Helvetica-Bold', 8)
-            c.drawCentredString(cx_, cy_ - 3, str(i+1))
-
-            tx = MX + 2*nr + 7*mm
-
-            # Drug name
-            c.setFillColor(TEXT_DARK)
-            c.setFont('Helvetica-Bold', 10)
-            c.drawString(tx, y - 5.5*mm, med.get('name', '–'))
-
-            # Pill badges row
-            c.setFillColor(TEXT_DARK)
-            px = tx
+            name = med.get('name', '–') or '–'
             dosage = med.get('dosage', '–') or '–'
-            freq   = med.get('frequency', '–') or '–'
-            px = pill(c, px, y - 12*mm, f'Dosage : {dosage}') + 3*mm
-            pill(c, px, y - 12*mm, f'Fréquence : {freq}')
+            freq = med.get('frequency', '–') or '–'
+            line = f"{i + 1}.  {name}  —  {dosage}  —  {freq}"
+            c.setFont('Helvetica', 9.5)
+            c.setFillColor(TEXT_DARK)
+            c.drawString(MX + pad, cy - 2.2 * mm, line)
+            c.setStrokeColor(RULE)
+            c.setLineWidth(0.6)
+            c.line(MX + pad, cy - 3.8 * mm, MX + CW - pad, cy - 3.8 * mm)
+            cy -= med_row_h
+    else:
+        c.setFont('Helvetica-Oblique', 9)
+        c.setFillColor(TEXT_MUTED)
+        c.drawString(MX + pad, cy - 2.2 * mm, 'Aucun médicament prescrit.')
+        c.setStrokeColor(RULE)
+        c.line(MX + pad, cy - 3.8 * mm, MX + CW - pad, cy - 3.8 * mm)
+        cy -= med_row_h
 
-            y -= MED_H + 2*mm
+    cy -= 3 * mm
+    draw_pulse(c, MX + pad, cy - 1.6 * mm, 7 * mm, 3 * mm, ACCENT, lw=1.1)
+    c.setFillColor(PRIMARY)
+    c.setFont('Helvetica-Bold', 10)
+    c.drawString(MX + pad + 9 * mm, cy - 2.2 * mm, 'DOSAGE & INSTRUCTIONS :')
+    cy -= heading_h
 
-        y -= 3*mm
+    cy = draw_ruled_lines(c, dosage_lines, MX + pad, cy - 2.2 * mm, inner_w,
+                           dosage_line_h, size=9, color=TEXT_DARK)
 
-    # ── RECOMMENDATIONS ───────────────────────────────────────────────────────
+    y -= box_h + 6 * mm
+
+    # ── BOTTOM PULSE ROWS: Diagnostic / Recommandations / Validité ─────────
+    rows = []
+    diagnosis = (data.get('diagnosis') or '').strip()
     reco = (data.get('recommendations') or '').strip()
+    if diagnosis:
+        rows.append(('Diagnostic', diagnosis))
     if reco:
-        y = section_bar(c, y, 'RECOMMANDATIONS')
-        y -= 2*mm
-        c.setFillColor(TEXT_DARK)
-        y = wrap_text(c, reco, MX+4*mm, y-4.5*mm, CW-8*mm,
-                      'Helvetica', 9, 4.8*mm)
-        y -= 4*mm
+        rows.append(('Recommandations', reco))
+    rows.append(('Validité', "Cette ordonnance est valable 3 mois à compter de la date d'émission."))
 
-    # ── SIGNATURE BLOCK ───────────────────────────────────────────────────────
-    SH = 24*mm
-    sy = max(y - 8*mm, MY + SH + 12*mm)
-    rr(c, MX, sy - SH, CW, SH, r=4*mm, fill=LIGHT_BG, stroke=BORDER, lw=0.6)
+    row_indent = 24 * mm
+    row_max_w = CW - row_indent
+    row_line_h = 5.6 * mm
+
+    needed = sum((max(len(measure_wrap(c, f"{lbl} : {txt}", row_max_w, 'Helvetica', 9)), 1)) * row_line_h + 2 * mm
+                 for lbl, txt in rows)
+    y = check_space(c, y, needed + 40 * mm)
+
+    for lbl, txt in rows:
+        lines = measure_wrap(c, f"{lbl} :", 0, 'Helvetica-Bold', 9)  # unused, kept for clarity
+        wrapped = measure_wrap(c, txt, row_max_w, 'Helvetica', 9)
+        if not wrapped:
+            wrapped = ['']
+        draw_pulse(c, MX, y - 1.6 * mm, 7 * mm, 3 * mm, ACCENT, lw=1.1)
+        c.setFont('Helvetica-Bold', 9)
+        c.setFillColor(PRIMARY)
+        c.drawString(MX + 9 * mm, y - 2.2 * mm, f"{lbl} :")
+        yy = draw_ruled_lines(c, wrapped, MX + row_indent, y - 2.2 * mm, row_max_w,
+                               row_line_h, size=9, color=TEXT_DARK)
+        y = yy - 2 * mm
+
+    y -= 4 * mm
+
+    # ── SIGNATURE BLOCK ──────────────────────────────────────────────────────
+    SH = 24 * mm
+    y = check_space(c, y, SH + 20 * mm)
+    sy = y
+
+    rr(c, MX, sy - SH, CW, SH, r=4 * mm, fill=colors.HexColor('#F4FAF6'), stroke=BORDER, lw=0.7)
 
     doc = data.get('doctor_name', '–')
     c.setFillColor(TEXT_DARK)
     c.setFont('Helvetica-Bold', 10)
-    c.drawString(MX+5*mm, sy - 8*mm, f'Dr. {doc}')
+    c.drawString(MX + 5 * mm, sy - 8 * mm, f'Dr. {doc}')
     c.setFont('Helvetica', 8)
     c.setFillColor(TEXT_MUTED)
-    c.drawString(MX+5*mm, sy - 13*mm, 'Signature et cachet du médecin')
+    c.drawString(MX + 5 * mm, sy - 13 * mm, 'Signature et cachet du médecin')
 
-    # Signature line
-    lx1 = MX + CW - 62*mm
-    lx2 = MX + CW - 30*mm
-    ly  = sy - 15*mm
+    lx1 = MX + CW - 62 * mm
+    lx2 = MX + CW - 30 * mm
+    ly = sy - 15 * mm
     c.setStrokeColor(ACCENT)
     c.setLineWidth(1)
     c.line(lx1, ly, lx2, ly)
     c.setFont('Helvetica', 7)
     c.setFillColor(TEXT_MUTED)
-    c.drawCentredString((lx1+lx2)/2, ly - 5, 'Signature')
+    c.drawCentredString((lx1 + lx2) / 2, ly - 5, 'Signature')
 
-    # Stamp circle
-    sc = MX + CW - 14*mm
+    sc = MX + CW - 14 * mm
     c.setStrokeColor(BORDER)
     c.setFillColor(WHITE)
     c.setLineWidth(0.8)
-    c.circle(sc, sy - 11*mm, 8*mm, fill=1, stroke=1)
-    c.setFillColor(DIVIDER)
+    c.circle(sc, sy - 11 * mm, 8 * mm, fill=1, stroke=1)
+    c.setFillColor(colors.HexColor('#B9D6C4'))
     c.setFont('Helvetica', 5.5)
     c.drawCentredString(sc, sy - 13, 'CACHET')
 
+    y = sy - SH - 6 * mm
+
+    # ── WATERMARK (bottom-right, faint) ─────────────────────────────────────
+    draw_logo_icon(c, PAGE_W - MX - 22 * mm, MY + 20 * mm, 34 * mm, alpha_color=WATERMARK)
+
     # ── FOOTER ───────────────────────────────────────────────────────────────
-    c.setStrokeColor(DIVIDER)
+    c.setStrokeColor(BORDER)
     c.setLineWidth(0.5)
-    c.line(MX, MY + 8*mm, MX+CW, MY + 8*mm)
+    c.line(MX, MY + 8 * mm, MX + CW, MY + 8 * mm)
 
     c.setFont('Helvetica', 6.5)
     c.setFillColor(TEXT_MUTED)
-    c.drawString(MX, MY + 4*mm,
-        'Ce document est confidentiel et réservé à un usage médical légitime.')
+    c.drawString(MX, MY + 4 * mm,
+                 'Ce document est confidentiel et réservé à un usage médical légitime.')
     c.setFont('Helvetica-Bold', 6.5)
     c.setFillColor(ACCENT)
-    c.drawRightString(MX+CW, MY + 4*mm, 'mednex.app')
+    c.drawRightString(MX + CW, MY + 4 * mm, 'mednex.app')
 
     c.save()
     buf.seek(0)
     return buf
 
 
-def _fmt_date(raw):
-    if not raw: return datetime.now().strftime('%d %B %Y')
+def _fmt_date_slash(raw):
+    if not raw:
+        return datetime.now().strftime('%d/%m/%Y')
     try:
-        return datetime.strptime(raw, '%Y-%m-%d').strftime('%d %B %Y')
+        return datetime.strptime(raw, '%Y-%m-%d').strftime('%d/%m/%Y')
     except Exception:
         return raw
 
@@ -335,11 +403,11 @@ def generate_pdf():
         if not data:
             return jsonify({'error': 'No JSON data provided'}), 400
         pdf_buf = create_prescription_pdf(data)
-        pname   = data.get('patient_name', 'Patient').replace(' ', '_')
-        dstr    = data.get('date', datetime.now().strftime('%Y-%m-%d'))
-        fname   = f'ordonnance_{pname}_{dstr}.pdf'
+        pname = data.get('patient_name', 'Patient').replace(' ', '_')
+        dstr = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+        fname = f'ordonnance_{pname}_{dstr}.pdf'
         return send_file(pdf_buf, mimetype='application/pdf',
-                         as_attachment=True, download_name=fname)
+                          as_attachment=True, download_name=fname)
     except Exception as e:
         logger.error(f'Error generating PDF: {e}')
         return jsonify({'error': str(e)}), 500
@@ -355,9 +423,9 @@ def generate_pdf_base64():
             return jsonify({'error': 'No JSON data provided'}), 400
         pdf_buf = create_prescription_pdf(data)
         import base64
-        b64     = base64.b64encode(pdf_buf.getvalue()).decode('utf-8')
-        pname   = data.get('patient_name', 'Patient').replace(' ', '_')
-        dstr    = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+        b64 = base64.b64encode(pdf_buf.getvalue()).decode('utf-8')
+        pname = data.get('patient_name', 'Patient').replace(' ', '_')
+        dstr = data.get('date', datetime.now().strftime('%Y-%m-%d'))
         return jsonify({'success': True, 'pdf_base64': b64,
                         'filename': f'ordonnance_{pname}_{dstr}.pdf'})
     except Exception as e:
