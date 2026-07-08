@@ -13,15 +13,36 @@ from reportlab.pdfgen import canvas as rl_canvas
 from datetime import datetime
 import io
 import os
+import hmac
 import logging
 
 app = Flask(__name__)
 CORS(app, origins=["https://mednex-web.vercel.app"])
 
-PDF_SECRET = os.environ.get("PDF_SECRET", "mednex-pdf-secret-2024-xK9#mP2$")
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# ── Fail closed: refuse to start with a missing or known-leaked secret ───────
+# The previous default value ("mednex-pdf-secret-2024-xK9#mP2$") was hardcoded
+# in this file, in client-side JS, and in a Postgres function — treat it as
+# permanently burned. PDF_SECRET must now be set explicitly in the deployment
+# environment (Render → Environment), with no fallback.
+PDF_SECRET = os.environ.get("PDF_SECRET")
+_LEAKED_SECRET = "mednex-pdf-secret-2024-xK9#mP2$"
+
+if not PDF_SECRET:
+    raise RuntimeError(
+        "PDF_SECRET environment variable is not set. Refusing to start. "
+        "Set a new random secret in your deployment environment — do not "
+        "reuse the old hardcoded value."
+    )
+if PDF_SECRET == _LEAKED_SECRET:
+    raise RuntimeError(
+        "PDF_SECRET is still set to the old leaked value. Generate a new "
+        "secret (e.g. `python -c \"import secrets; print(secrets.token_urlsafe(32))\"`) "
+        "and update it everywhere it's referenced (Render env var, and any "
+        "client code / SQL functions still sending it)."
+    )
 
 # ── Brand palette (matched to the MedNex prescription-pad design) ────────────
 PRIMARY     = colors.HexColor('#0B3D2E')   # deep green — logo, headings
@@ -389,6 +410,12 @@ def _fmt_date_slash(raw):
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
+def _secret_ok(req):
+    """Constant-time comparison to avoid leaking secret length/prefix via timing."""
+    supplied = req.headers.get("X-PDF-Secret", "")
+    return hmac.compare_digest(supplied, PDF_SECRET)
+
+
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'healthy', 'service': 'MedNex PDF Server'})
@@ -396,7 +423,7 @@ def health_check():
 
 @app.route('/generate-pdf', methods=['POST'])
 def generate_pdf():
-    if request.headers.get("X-PDF-Secret") != PDF_SECRET:
+    if not _secret_ok(request):
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         data = request.get_json()
@@ -415,7 +442,7 @@ def generate_pdf():
 
 @app.route('/generate-pdf-base64', methods=['POST'])
 def generate_pdf_base64():
-    if request.headers.get("X-PDF-Secret") != PDF_SECRET:
+    if not _secret_ok(request):
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         data = request.get_json()

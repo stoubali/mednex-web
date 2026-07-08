@@ -15,7 +15,7 @@
 
   // ⚠️ Update this once the push server is deployed
   const PUSH_SERVER = "https://push-service-szey.onrender.com";
-  const PDF_SECRET  = "mednex-pdf-secret-2024-xK9#mP2$";
+  const PDF_SECRET  = "DF7N1MUNkCwAvB24uITwJjWn4h7yqfHBYLSpX3x-mL4";
 
   if (typeof supabase === "undefined") {
     console.error("[notifications] Supabase SDK not loaded before this script.");
