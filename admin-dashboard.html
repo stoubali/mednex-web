@@ -716,6 +716,10 @@
       </button>
 
       <div class="nav-section-label">Système</div>
+      <button class="nav-item" onclick="showView('auditlog', this)">
+        <div class="nav-icon"><i class="fas fa-clipboard-list"></i></div>
+        Journal d'audit
+      </button>
       <button class="nav-item" onclick="showView('settings', this)">
         <div class="nav-icon"><i class="fas fa-cog"></i></div>
         Paramètres
@@ -1107,6 +1111,35 @@
       </div>
 
       <!-- ═══════════════════════════════════════════ -->
+      <!-- VIEW: AUDIT LOG                             -->
+      <!-- ═══════════════════════════════════════════ -->
+      <div class="view" id="view-auditlog">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+          <input class="filter-input" type="text" placeholder="Admin, action, cible…" id="auditSearch" oninput="filterAuditLog()" style="min-width:220px;" />
+          <select class="filter-input" id="auditActionFilter" onchange="filterAuditLog()">
+            <option value="">Toutes les actions</option>
+            <option value="approve_doctor">Approbation médecin</option>
+            <option value="reject_doctor">Refus médecin</option>
+            <option value="cancel_appointment">Annulation RDV</option>
+            <option value="toggle_maintenance">Mode maintenance</option>
+          </select>
+          <span class="badge badge-neutral" id="auditCountLabel">–</span>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Admin</th><th>Action</th><th>Table</th><th>Cible</th><th>Détails</th><th>Date</th></tr>
+              </thead>
+              <tbody id="auditTableBody">
+                <tr><td colspan="6" style="text-align:center;padding:30px;color:#8A9E96;"><i class="fas fa-spinner fa-spin"></i> Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════ -->
       <!-- VIEW: SETTINGS                              -->
       <!-- ═══════════════════════════════════════════ -->
       <div class="view" id="view-settings">
@@ -1244,6 +1277,7 @@
     }
 
     window.adminFullName = admin.full_name;
+    window.__adminId = admin.id;
     const nameLabel = document.getElementById('adminNameLabel');
     if (nameLabel && admin.full_name) nameLabel.textContent = admin.full_name;
     document.body.style.visibility = 'visible';
@@ -1255,6 +1289,24 @@
   // ── XSS Guard ─────────────────────────────────────────────────
   function esc(v) {
     return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Audit Log ─────────────────────────────────────────────────
+  // Best-effort: a failed audit write should never block the actual admin
+  // action (e.g. approving a doctor). We log a console warning and move on.
+  async function logAdminAction(action, targetTable, targetId, details = {}) {
+    try {
+      const { error } = await sb.from('admin_audit_log').insert([{
+        admin_id: window.__adminId,
+        action,
+        target_table: targetTable,
+        target_id: targetId,
+        details
+      }]);
+      if (error) console.warn('[audit log] write failed:', error.message);
+    } catch (e) {
+      console.warn('[audit log] write failed:', e);
+    }
   }
 
   // ── Toast ─────────────────────────────────────────────────────
@@ -1308,6 +1360,7 @@
     stats: ['Statistiques', 'Métriques globales de la plateforme'],
     appointments: ['Rendez-vous', 'Tous les rendez-vous planifiés'],
     prescriptions: ['Ordonnances', 'Toutes les ordonnances émises'],
+    auditlog: ['Journal d\'audit', 'Historique des actions administrateur'],
     settings: ['Paramètres', 'Configuration de la plateforme'],
   };
 
@@ -1344,6 +1397,7 @@
     if (name === 'stats')     await loadStats();
     if (name === 'appointments') await loadApptsTable();
     if (name === 'prescriptions') await loadRxTable();
+    if (name === 'auditlog') await loadAuditLog();
     if (name === 'settings')  await loadMaintenanceState();
   }
 
@@ -1416,6 +1470,8 @@
           showToast('error', 'Erreur: ' + error.message);
           return;
         }
+
+        await logAdminAction('toggle_maintenance', 'app_settings', null, { enabled: newValue });
 
         maintenanceOn = newValue;
         applyMaintenanceUI();
@@ -1656,6 +1712,7 @@
     confirmAction('Approuver ce médecin ?', 'Ce médecin pourra se connecter et gérer ses rendez-vous.', 'btn-success', 'Approuver', async () => {
       const { error } = await sb.from('doctors').update({ status: 'approved' }).eq('id', id);
       if (error) { showToast('error', error.message); return; }
+      await logAdminAction('approve_doctor', 'doctors', id);
       showToast('success', 'Médecin approuvé avec succès');
       closeModal('doctorModal');
       await loadApprovals();
@@ -1667,6 +1724,7 @@
     confirmAction('Refuser ce médecin ?', 'Ce médecin ne pourra pas accéder à la plateforme.', 'btn-danger', 'Refuser', async () => {
       const { error } = await sb.from('doctors').update({ status: 'rejected' }).eq('id', id);
       if (error) { showToast('error', error.message); return; }
+      await logAdminAction('reject_doctor', 'doctors', id);
       showToast('warning', 'Médecin refusé');
       closeModal('doctorModal');
       await loadApprovals();
@@ -1943,6 +2001,7 @@
     confirmAction('Annuler ce rendez-vous ?', 'Cette action est irréversible.', 'btn-danger', 'Annuler le RDV', async () => {
       const { error } = await sb.from('appointments').update({ status: 'cancelled' }).eq('id', id);
       if (error) { showToast('error', error.message); return; }
+      await logAdminAction('cancel_appointment', 'appointments', id);
       showToast('warning', 'Rendez-vous annulé');
       await loadApptsTable();
     });
@@ -1979,6 +2038,69 @@
       r.patients?.full_name?.toLowerCase().includes(q) || r.medication?.toLowerCase().includes(q)
     );
     renderRxTable(data);
+  }
+
+  // ── AUDIT LOG ─────────────────────────────────────────────────
+  let allAuditFull = [];
+  const auditActionLabels = {
+    approve_doctor: { label: 'Approbation médecin', badge: 'badge-success' },
+    reject_doctor: { label: 'Refus médecin', badge: 'badge-danger' },
+    cancel_appointment: { label: 'Annulation RDV', badge: 'badge-warning' },
+    toggle_maintenance: { label: 'Mode maintenance', badge: 'badge-info' },
+  };
+
+  async function loadAuditLog() {
+    const { data, error } = await sb
+      .from('admin_audit_log')
+      .select('*, admin_users(full_name)')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (error) {
+      document.getElementById('auditTableBody').innerHTML =
+        `<tr><td colspan="6" style="text-align:center;padding:30px;color:#EF4444;">Erreur: ${esc(error.message)}</td></tr>`;
+      return;
+    }
+    allAuditFull = data || [];
+    renderAuditLog(allAuditFull);
+  }
+
+  function renderAuditLog(logs) {
+    const label = document.getElementById('auditCountLabel');
+    if (label) label.textContent = logs.length + ' entrée' + (logs.length > 1 ? 's' : '');
+    const tb = document.getElementById('auditTableBody');
+    if (!logs.length) {
+      tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#8A9E96;">Aucune action enregistrée</td></tr>';
+      return;
+    }
+    tb.innerHTML = logs.map(l => {
+      const meta = auditActionLabels[l.action] || { label: l.action, badge: 'badge-neutral' };
+      const detailsStr = l.details && Object.keys(l.details).length
+        ? Object.entries(l.details).map(([k,v]) => `${k}: ${v}`).join(', ')
+        : '–';
+      return `
+      <tr>
+        <td><strong>${esc(l.admin_users?.full_name || 'Admin inconnu')}</strong></td>
+        <td><span class="badge ${meta.badge}">${esc(meta.label)}</span></td>
+        <td>${esc(l.target_table || '–')}</td>
+        <td><code style="font-size:0.72rem;">${esc(l.target_id ? String(l.target_id).slice(0,8)+'…' : '–')}</code></td>
+        <td style="font-size:0.78rem;color:#5A6F66;">${esc(detailsStr)}</td>
+        <td style="font-size:0.78rem;">${new Date(l.created_at).toLocaleString('fr-FR')}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function filterAuditLog() {
+    const q = document.getElementById('auditSearch')?.value.toLowerCase() || '';
+    const action = document.getElementById('auditActionFilter')?.value || '';
+    let data = allAuditFull;
+    if (action) data = data.filter(l => l.action === action);
+    if (q) data = data.filter(l =>
+      l.admin_users?.full_name?.toLowerCase().includes(q) ||
+      l.action?.toLowerCase().includes(q) ||
+      l.target_table?.toLowerCase().includes(q)
+    );
+    renderAuditLog(data);
   }
 
   // ── GLOBAL SEARCH ─────────────────────────────────────────────
@@ -2070,6 +2192,9 @@
   window.filterPatients       = filterPatients;
   window.filterAppts          = filterAppts;
   window.filterRx             = filterRx;
+  window.loadAuditLog         = loadAuditLog;
+  window.filterAuditLog       = filterAuditLog;
+  window.logAdminAction       = logAdminAction;
   window.adminCancelAppt      = adminCancelAppt;
   window.handleGlobalSearch   = handleGlobalSearch;
   window.refreshAll           = refreshAll;
