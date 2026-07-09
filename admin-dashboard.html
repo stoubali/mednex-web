@@ -922,6 +922,7 @@
             </select>
           </div>
           <span class="badge badge-neutral" id="userCountLabel">–</span>
+          <button class="btn btn-outline btn-sm" onclick="exportUsersCSV()"><i class="fas fa-file-export"></i> CSV</button>
         </div>
 
         <div class="card">
@@ -959,6 +960,7 @@
               <option value="rejected">Refusés</option>
             </select>
           </div>
+          <button class="btn btn-outline btn-sm" onclick="exportDoctorsCSV()"><i class="fas fa-file-export"></i> CSV</button>
         </div>
         <div class="card">
           <div class="table-wrap">
@@ -981,6 +983,7 @@
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
           <input class="filter-input" type="text" placeholder="Nom, email, téléphone…" id="patientSearch" oninput="filterPatients()" style="min-width:220px;" />
           <span class="badge badge-neutral" id="patientCountLabel">–</span>
+          <button class="btn btn-outline btn-sm" onclick="exportPatientsCSV()"><i class="fas fa-file-export"></i> CSV</button>
         </div>
         <div class="card">
           <div class="table-wrap">
@@ -1069,6 +1072,7 @@
             <option value="pending">En attente</option>
             <option value="cancelled">Annulés</option>
           </select>
+          <button class="btn btn-outline btn-sm" onclick="exportApptsCSV()"><i class="fas fa-file-export"></i> CSV</button>
         </div>
         <div class="card">
           <div class="table-wrap">
@@ -1095,6 +1099,7 @@
             <option value="true">Actives</option>
             <option value="false">Brouillons</option>
           </select>
+          <button class="btn btn-outline btn-sm" onclick="exportRxCSV()"><i class="fas fa-file-export"></i> CSV</button>
         </div>
         <div class="card">
           <div class="table-wrap">
@@ -1316,6 +1321,27 @@
   }
 
   // ── Audit Log ─────────────────────────────────────────────────
+
+  // ── CSV Export ────────────────────────────────────────────────
+  // Generic helper: rows = array of objects, columns = [[header, key_or_fn], ...]
+  function exportToCSV(rows, columns, filenamePrefix) {
+    if (!rows || !rows.length) { showToast('info', 'Aucune donnée à exporter'); return; }
+    const header = columns.map(c => c[0]);
+    const lines = [header, ...rows.map(row => columns.map(c => {
+      const v = typeof c[1] === 'function' ? c[1](row) : row[c[1]];
+      return v ?? '';
+    }))];
+    const csv = lines.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel accented chars
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('success', `${rows.length} ligne(s) exportée(s)`);
+  }
+
   // Best-effort: a failed audit write should never block the actual admin
   // action (e.g. approving a doctor). We log a console warning and move on.
   async function logAdminAction(action, targetTable, targetId, details = {}) {
@@ -2161,6 +2187,102 @@
     renderRxTable(data);
   }
 
+  // ── CSV EXPORT (per-view) ────────────────────────────────────────
+  // Each export re-applies the same filter the view currently has active,
+  // so the CSV matches what's on screen rather than always the full table.
+
+  function exportUsersCSV() {
+    const q    = document.getElementById('userSearch')?.value.toLowerCase() || '';
+    const type = document.getElementById('userTypeFilter')?.value || '';
+    let data = [...allDoctors, ...allPatients];
+    if (type) data = data.filter(u => u._type === type);
+    if (q) data = data.filter(u =>
+      u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.phone?.includes(q)
+    );
+    exportToCSV(data, [
+      ['Nom', 'full_name'],
+      ['Type', u => u._type === 'doctor' ? 'Médecin' : 'Patient'],
+      ['Email', 'email'],
+      ['Téléphone', u => u.phone || '–'],
+      ['Inscrit le', u => formatDate(u.created_at)],
+      ['Statut', u => u._type === 'doctor' ? u.status : 'actif'],
+    ], 'utilisateurs');
+  }
+
+  function exportDoctorsCSV() {
+    const q      = document.getElementById('doctorSearch')?.value.toLowerCase() || '';
+    const status = document.getElementById('doctorStatusFilter')?.value || '';
+    let data = allDoctorsFull;
+    if (status) data = data.filter(d => d.status === status);
+    if (q) data = data.filter(d =>
+      d.full_name?.toLowerCase().includes(q) || d.specialty?.toLowerCase().includes(q) || d.city?.toLowerCase().includes(q)
+    );
+    exportToCSV(data, [
+      ['Nom', 'full_name'],
+      ['Email', 'email'],
+      ['Téléphone', d => d.phone || '–'],
+      ['Spécialité', 'specialty'],
+      ['Ville', d => d.city || '–'],
+      ['N° Licence', d => d.license_number || '–'],
+      ['Statut', 'status'],
+      ['Raison du refus', d => d.rejection_reason || ''],
+      ['Inscrit le', d => formatDate(d.created_at)],
+    ], 'medecins');
+  }
+
+  function exportPatientsCSV() {
+    const q = document.getElementById('patientSearch')?.value.toLowerCase() || '';
+    let data = allPatientsFull;
+    if (q) data = data.filter(p =>
+      p.full_name?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q) || p.phone?.includes(q)
+    );
+    exportToCSV(data, [
+      ['Nom', 'full_name'],
+      ['Email', p => p.email || '–'],
+      ['Téléphone', p => p.phone || '–'],
+      ['Date de naissance', p => p.birth_date || '–'],
+      ['Genre', p => p.gender || '–'],
+      ['Inscrit le', p => formatDate(p.created_at)],
+    ], 'patients');
+  }
+
+  function exportApptsCSV() {
+    const q = document.getElementById('apptSearch')?.value.toLowerCase() || '';
+    const s = document.getElementById('apptStatusFilter')?.value || '';
+    let data = allApptsFull;
+    if (s) data = data.filter(a => a.status === s);
+    if (q) data = data.filter(a =>
+      a.patient_name?.toLowerCase().includes(q) || a.doctor_name?.toLowerCase().includes(q)
+    );
+    exportToCSV(data, [
+      ['Patient', a => a.patient_name || '–'],
+      ['Médecin', a => a.doctor_name || '–'],
+      ['Date', a => a.date || '–'],
+      ['Début', a => a.start_time?.slice(0,5) || '–'],
+      ['Fin', a => a.end_time?.slice(0,5) || '–'],
+      ['N°', a => a.slot_number || '–'],
+      ['Statut', 'status'],
+    ], 'rendez-vous');
+  }
+
+  function exportRxCSV() {
+    const q = document.getElementById('rxSearch')?.value.toLowerCase() || '';
+    const s = document.getElementById('rxStatusFilter')?.value;
+    let data = allRxFull;
+    if (s !== '') data = data.filter(r => String(r.is_active) === s);
+    if (q) data = data.filter(r =>
+      r.patients?.full_name?.toLowerCase().includes(q) || r.medication?.toLowerCase().includes(q)
+    );
+    exportToCSV(data, [
+      ['Patient', r => r.patients?.full_name || '–'],
+      ['Médecin', r => r.doctors?.full_name || '–'],
+      ['Médicament', r => r.medication || '–'],
+      ['Date', r => r.prescribed_at || '–'],
+      ['Durée', r => r.duration || '–'],
+      ['Statut', r => r.is_active ? 'Active' : 'Brouillon'],
+    ], 'ordonnances');
+  }
+
   // ── AUDIT LOG ─────────────────────────────────────────────────
   let allAuditFull = [];
   const auditActionLabels = {
@@ -2316,6 +2438,11 @@
   window.filterPatients       = filterPatients;
   window.filterAppts          = filterAppts;
   window.filterRx             = filterRx;
+  window.exportUsersCSV       = exportUsersCSV;
+  window.exportDoctorsCSV     = exportDoctorsCSV;
+  window.exportPatientsCSV    = exportPatientsCSV;
+  window.exportApptsCSV       = exportApptsCSV;
+  window.exportRxCSV          = exportRxCSV;
   window.loadAuditLog         = loadAuditLog;
   window.filterAuditLog       = filterAuditLog;
   window.logAdminAction       = logAdminAction;
