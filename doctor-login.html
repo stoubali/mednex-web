@@ -183,7 +183,7 @@ if (!authData.user.email_confirmed_at) {
     // 3. Look up doctor profile linked to this auth user
     const { data: doctor, error: profileError } = await sb
       .from("doctors")
-      .select("id, status, full_name")
+      .select("id, status, full_name, rejection_reason")
       .eq("auth_user_id", authData.user.id)
       .single();
 
@@ -201,7 +201,11 @@ if (!authData.user.email_confirmed_at) {
     }
     if (doctor.status === "rejected") {
       await sb.auth.signOut();
-      showError("Votre compte médecin a été refusé. Veuillez contacter le support.");
+      showError(
+        doctor.rejection_reason
+          ? `Votre compte médecin a été refusé. Motif : ${doctor.rejection_reason}`
+          : "Votre compte médecin a été refusé. Veuillez contacter le support."
+      );
       return;
     }
     if (doctor.status !== "approved") {

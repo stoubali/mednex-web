@@ -1246,6 +1246,19 @@
     </div>
   </div>
 
+  <!-- Reject Doctor Modal (captures a reason) -->
+  <div class="modal-overlay" id="rejectDoctorModal">
+    <div class="modal-box" style="max-width:440px;">
+      <h3><i class="fas fa-user-times" style="color:var(--danger);"></i> Refuser ce médecin</h3>
+      <p style="font-size:0.85rem;color:#5A6F66;margin-bottom:12px;">Ce médecin ne pourra pas accéder à la plateforme. La raison est optionnelle mais recommandée — elle aide le support et peut être communiquée au médecin.</p>
+      <textarea id="rejectReasonInput" placeholder="Ex : licence non vérifiable, informations incomplètes…" style="width:100%;min-height:90px;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);font-family:inherit;font-size:0.85rem;outline:none;resize:vertical;"></textarea>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal('rejectDoctorModal')">Annuler</button>
+        <button class="btn btn-danger" onclick="confirmRejectDoctor()"><i class="fas fa-times"></i> Confirmer le refus</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-container" id="toastContainer"></div>
 
   <script>
@@ -1774,6 +1787,7 @@
             ${d.clinic_address ? `<span class="badge badge-neutral"><i class="fas fa-hospital"></i> ${esc(d.clinic_address)}</span>` : ''}
           </div>
           ${d.description ? `<p style="font-size:0.78rem;color:#5A6F66;margin-top:8px;line-height:1.4;max-width:500px;">${esc(d.description.slice(0,160))}${d.description.length>160?'…':''}</p>` : ''}
+          ${d.status === 'rejected' && d.rejection_reason ? `<p style="font-size:0.75rem;color:#991B1B;margin-top:6px;line-height:1.4;max-width:500px;"><i class="fas fa-comment-slash"></i> ${esc(d.rejection_reason)}</p>` : ''}
           <div style="font-size:0.7rem;color:#8A9E96;margin-top:6px;">Inscrit le ${formatDate(d.created_at)}</div>
         </div>
         <div class="approval-actions">
@@ -1814,16 +1828,28 @@
     });
   }
 
-  async function rejectDoctor(id) {
-    confirmAction('Refuser ce médecin ?', 'Ce médecin ne pourra pas accéder à la plateforme.', 'btn-danger', 'Refuser', async () => {
-      const { error } = await sb.from('doctors').update({ status: 'rejected' }).eq('id', id);
-      if (error) { showToast('error', error.message); return; }
-      await logAdminAction('reject_doctor', 'doctors', id);
-      showToast('warning', 'Médecin refusé');
-      closeModal('doctorModal');
-      await loadApprovals();
-      await loadDashboard();
-    });
+  let pendingRejectId = null;
+
+  function rejectDoctor(id) {
+    pendingRejectId = id;
+    document.getElementById('rejectReasonInput').value = '';
+    document.getElementById('rejectDoctorModal').classList.add('active');
+  }
+
+  async function confirmRejectDoctor() {
+    if (!pendingRejectId) return;
+    const id = pendingRejectId;
+    const reason = document.getElementById('rejectReasonInput').value.trim() || null;
+
+    const { error } = await sb.from('doctors').update({ status: 'rejected', rejection_reason: reason }).eq('id', id);
+    if (error) { showToast('error', error.message); return; }
+    await logAdminAction('reject_doctor', 'doctors', id, reason ? { reason } : {});
+    showToast('warning', 'Médecin refusé');
+    closeModal('rejectDoctorModal');
+    closeModal('doctorModal');
+    pendingRejectId = null;
+    await loadApprovals();
+    await loadDashboard();
   }
 
   let modalDoctorId = null;
@@ -1842,6 +1868,7 @@
       <div class="modal-row"><span class="label">Ville</span><span class="value">${esc(d.city||'–')}</span></div>
       <div class="modal-row"><span class="label">Adresse cabinet</span><span class="value">${esc(d.clinic_address||'–')}</span></div>
       <div class="modal-row"><span class="label">Statut</span><span class="value"><span class="badge ${d.status==='approved'?'badge-success':d.status==='pending'?'badge-warning':'badge-danger'}">${esc(d.status)}</span></span></div>
+      ${d.status === 'rejected' && d.rejection_reason ? `<div class="modal-row" style="flex-direction:column;gap:6px;"><span class="label">Raison du refus</span><span class="value" style="text-align:left;font-weight:400;font-size:0.8rem;line-height:1.5;color:#991B1B;">${esc(d.rejection_reason)}</span></div>` : ''}
       <div class="modal-row"><span class="label">Rendez-vous</span><span class="value">${apptCount || 0}</span></div>
       <div class="modal-row"><span class="label">Ordonnances</span><span class="value">${rxCount || 0}</span></div>
       ${d.description ? `<div class="modal-row" style="flex-direction:column;gap:6px;"><span class="label">Description</span><span class="value" style="text-align:left;font-weight:400;font-size:0.8rem;line-height:1.5;">${esc(d.description)}</span></div>` : ''}
@@ -2278,6 +2305,7 @@
   window.toggleSidebar        = toggleSidebar;
   window.approveDoctor        = approveDoctor;
   window.rejectDoctor         = rejectDoctor;
+  window.confirmRejectDoctor  = confirmRejectDoctor;
   window.viewDoctorDetail     = viewDoctorDetail;
   window.viewPatientDetail    = viewPatientDetail;
   window.approveDoctorFromModal = approveDoctorFromModal;
