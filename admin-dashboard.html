@@ -1161,13 +1161,24 @@
           <div class="card card-pad" style="margin-bottom:20px;">
             <div class="section-title" style="margin-bottom:16px;"><i class="fas fa-sliders-h"></i> Paramètres de la plateforme</div>
             <div style="display:flex;flex-direction:column;gap:16px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);">
-                <div><div style="font-size:0.85rem;font-weight:600;">Confirmation email requise</div><div style="font-size:0.75rem;color:#5A6F66;">Obliger les médecins à confirmer leur email</div></div>
-                <div style="width:40px;height:22px;border-radius:60px;background:var(--primary);position:relative;cursor:pointer;"><div style="position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:white;"></div></div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border);">
+                <div>
+                  <div style="font-size:0.85rem;font-weight:600;">Confirmation email requise</div>
+                  <div style="font-size:0.75rem;color:#5A6F66;">Contrôlé directement dans les paramètres Supabase Auth — pas modifiable depuis ce tableau de bord.</div>
+                </div>
+                <a href="https://supabase.com/dashboard/project/xisdwbyermvbqjuqjagn/auth/providers" target="_blank" rel="noopener" class="badge badge-warning" style="flex-shrink:0;white-space:nowrap;text-decoration:none;"><i class="fas fa-external-link-alt" style="font-size:0.6rem;"></i> Voir Supabase</a>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);">
-                <div><div style="font-size:0.85rem;font-weight:600;">Inscription ouverte</div><div style="font-size:0.75rem;color:#5A6F66;">Permettre aux nouveaux patients de s'inscrire</div></div>
-                <div style="width:40px;height:22px;border-radius:60px;background:var(--primary);position:relative;cursor:pointer;"><div style="position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:white;"></div></div>
+                <div>
+                  <div style="font-size:0.85rem;font-weight:600;">Inscription ouverte</div>
+                  <div style="font-size:0.75rem;color:#5A6F66;">Permettre aux nouveaux patients de s'inscrire</div>
+                  <div id="registrationStatus" style="font-size:0.72rem;margin-top:4px;font-weight:600;color:#5A6F66;">Chargement…</div>
+                </div>
+                <div id="registrationToggle"
+                  onclick="toggleRegistration()"
+                  style="width:44px;height:24px;border-radius:60px;background:var(--border);position:relative;cursor:pointer;transition:background 0.3s ease;flex-shrink:0;">
+                  <div id="registrationThumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:white;box-shadow:0 1px 4px rgba(0,0,0,0.2);transition:left 0.3s ease;"></div>
+                </div>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;">
                 <div>
@@ -1398,7 +1409,90 @@
     if (name === 'appointments') await loadApptsTable();
     if (name === 'prescriptions') await loadRxTable();
     if (name === 'auditlog') await loadAuditLog();
-    if (name === 'settings')  await loadMaintenanceState();
+    if (name === 'settings')  { await loadMaintenanceState(); await loadRegistrationState(); }
+  }
+
+  // ── PATIENT REGISTRATION TOGGLE ─────────────────────────────────
+  let registrationOpen = true; // fail-open default: matches current behavior if the row doesn't exist yet
+
+  async function loadRegistrationState() {
+    const status = document.getElementById('registrationStatus');
+    try {
+      const { data, error } = await sb
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'patient_registration_open')
+        .single();
+
+      if (error) {
+        // Row not created yet — treat as open (matches current, pre-toggle behavior) rather than
+        // showing an alarming error for a non-security-critical setting.
+        registrationOpen = true;
+        applyRegistrationUI();
+        return;
+      }
+
+      registrationOpen = data?.value !== 'false';
+      applyRegistrationUI();
+    } catch (e) {
+      console.error('loadRegistrationState exception:', e);
+      if (status) { status.textContent = '⚠️ Erreur de connexion'; status.style.color = '#EF4444'; }
+    }
+  }
+
+  function applyRegistrationUI() {
+    const toggle = document.getElementById('registrationToggle');
+    const thumb  = document.getElementById('registrationThumb');
+    const status = document.getElementById('registrationStatus');
+    if (!toggle) return;
+
+    if (registrationOpen) {
+      toggle.style.background = 'var(--primary)';
+      thumb.style.left = '23px';
+      status.textContent = '🟢 Nouvelles inscriptions patients autorisées';
+      status.style.color = '#22C55E';
+    } else {
+      toggle.style.background = 'var(--border)';
+      thumb.style.left = '3px';
+      status.textContent = '🔴 Inscriptions patients fermées';
+      status.style.color = '#EF4444';
+    }
+  }
+
+  async function toggleRegistration() {
+    const newValue = !registrationOpen;
+
+    confirmAction(
+      `${newValue ? 'Ouvrir' : 'Fermer'} les inscriptions patients ?`,
+      newValue
+        ? 'Les nouveaux patients pourront de nouveau créer un compte.'
+        : 'Le formulaire d\'inscription patient affichera un message et refusera les nouveaux comptes. Les patients existants ne sont pas affectés.',
+      newValue ? 'btn-success' : 'btn-danger',
+      newValue ? '🟢 Ouvrir les inscriptions' : '🔴 Fermer les inscriptions',
+      async () => {
+        const { error } = await sb
+          .from('app_settings')
+          .upsert(
+            { key: 'patient_registration_open', value: String(newValue), updated_at: new Date().toISOString() },
+            { onConflict: 'key' }
+          );
+
+        if (error) {
+          console.error('toggleRegistration error:', error);
+          showToast('error', 'Erreur: ' + error.message);
+          return;
+        }
+
+        await logAdminAction('toggle_registration', 'app_settings', null, { enabled: newValue });
+
+        registrationOpen = newValue;
+        applyRegistrationUI();
+        showToast(
+          newValue ? 'success' : 'warning',
+          newValue ? '🟢 Inscriptions patients ouvertes' : '🔴 Inscriptions patients fermées'
+        );
+      }
+    );
   }
 
   // ── MAINTENANCE MODE ──────────────────────────────────────────
@@ -2047,6 +2141,7 @@
     reject_doctor: { label: 'Refus médecin', badge: 'badge-danger' },
     cancel_appointment: { label: 'Annulation RDV', badge: 'badge-warning' },
     toggle_maintenance: { label: 'Mode maintenance', badge: 'badge-info' },
+    toggle_registration: { label: 'Inscriptions patients', badge: 'badge-info' },
   };
 
   async function loadAuditLog() {
@@ -2178,6 +2273,7 @@
 
   // Expose globals
   window.toggleMaintenance     = toggleMaintenance;
+  window.toggleRegistration    = toggleRegistration;
   window.showView             = showView;
   window.toggleSidebar        = toggleSidebar;
   window.approveDoctor        = approveDoctor;

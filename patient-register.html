@@ -49,6 +49,9 @@ body{ font-family:'Inter','Segoe UI',sans-serif; background:linear-gradient(135d
 
   <div id="successBox" class="success-box"><i class="fas fa-check-circle"></i> <span></span></div>
   <div id="errorBox"   class="error-box"><i class="fas fa-exclamation-triangle"></i> <span></span></div>
+  <div id="closedBox" class="error-box" style="display:none;background:#fff7ed;color:#c2410c;border-left-color:#f97316;">
+    <i class="fas fa-lock"></i> Les inscriptions patients sont temporairement fermées. Réessayez plus tard ou contactez l'équipe MedNex.
+  </div>
 
   <form class="register-form" id="registerForm">
     <div class="input-group"><label><i class="fas fa-user"></i> Nom complet</label><input name="full_name" type="text" placeholder="Entrez votre nom complet" required></div>
@@ -86,6 +89,28 @@ const submitBtn  = document.getElementById("submitBtn");
 function showSuccess(msg){ successBox.querySelector("span").textContent=msg; successBox.style.display="block"; errorBox.style.display="none"; successBox.scrollIntoView({behavior:"smooth",block:"nearest"}); }
 function showError(msg){ errorBox.querySelector("span").textContent=msg; errorBox.style.display="block"; successBox.style.display="none"; errorBox.scrollIntoView({behavior:"smooth",block:"nearest"}); }
 function hideAlerts(){ successBox.style.display="none"; errorBox.style.display="none"; }
+
+// ── Registration-open check ─────────────────────────────────────
+// Soft gate, same pattern as maintenance-check.js: if the flag is explicitly
+// 'false', hide the form and show a message. Fail open (show the form) if the
+// row is missing or the query errors, so a misconfigured/missing row never
+// accidentally locks out real registrations.
+(async function checkRegistrationOpen() {
+  try {
+    const { data } = await sb
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'patient_registration_open')
+      .single();
+
+    if (data?.value === 'false') {
+      form.style.display = 'none';
+      document.getElementById('closedBox').style.display = 'block';
+    }
+  } catch (e) {
+    console.warn('[registration-check] could not read app_settings:', e);
+  }
+})();
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
