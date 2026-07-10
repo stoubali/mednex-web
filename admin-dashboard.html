@@ -903,6 +903,13 @@
           </div>
         </div>
 
+        <div id="bulkActionBar" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:var(--light-green);border:1px solid rgba(19,79,51,0.15);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:16px;">
+          <span style="font-size:0.85rem;font-weight:600;color:var(--primary);"><span id="bulkSelectedCount">0</span> médecin(s) sélectionné(s)</span>
+          <button class="btn btn-success btn-sm" onclick="bulkApprove()"><i class="fas fa-check-double"></i> Approuver la sélection</button>
+          <button class="btn btn-danger btn-sm" onclick="openBulkRejectModal()"><i class="fas fa-ban"></i> Refuser la sélection</button>
+          <button class="btn btn-outline btn-sm" onclick="clearBulkSelection()" style="margin-left:auto;">Annuler la sélection</button>
+        </div>
+
         <div id="approvalList" style="display:flex;flex-direction:column;gap:12px;">
           <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Chargement…</p></div>
         </div>
@@ -1260,6 +1267,19 @@
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closeModal('rejectDoctorModal')">Annuler</button>
         <button class="btn btn-danger" onclick="confirmRejectDoctor()"><i class="fas fa-times"></i> Confirmer le refus</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Reject Modal (one shared reason for the whole batch) -->
+  <div class="modal-overlay" id="bulkRejectModal">
+    <div class="modal-box" style="max-width:440px;">
+      <h3><i class="fas fa-user-times" style="color:var(--danger);"></i> Refuser <span id="bulkRejectCount">0</span> médecin(s)</h3>
+      <p style="font-size:0.85rem;color:#5A6F66;margin-bottom:12px;">Cette raison sera appliquée à tous les médecins sélectionnés. Optionnelle mais recommandée.</p>
+      <textarea id="bulkRejectReasonInput" placeholder="Ex : licence non vérifiable, informations incomplètes…" style="width:100%;min-height:90px;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);font-family:inherit;font-size:0.85rem;outline:none;resize:vertical;"></textarea>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal('bulkRejectModal')">Annuler</button>
+        <button class="btn btn-danger" onclick="confirmBulkReject()"><i class="fas fa-ban"></i> Confirmer le refus groupé</button>
       </div>
     </div>
   </div>
@@ -1795,6 +1815,8 @@
   }
 
   function renderApprovals(doctors) {
+    const bar = document.getElementById('bulkActionBar');
+    if (bar) bar.style.display = 'none';
     const el = document.getElementById('approvalList');
     if (!doctors.length) {
       el.innerHTML = '<div class="empty-state card card-pad"><i class="fas fa-clipboard-check"></i><p>Aucun médecin dans cette catégorie</p></div>';
@@ -1802,6 +1824,7 @@
     }
     el.innerHTML = doctors.map((d, i) => `
       <div class="approval-card" style="animation-delay:${i*0.05}s;">
+        ${d.status === 'pending' ? `<input type="checkbox" class="bulk-select-checkbox" data-id="${esc(d.id)}" onchange="onBulkCheckboxChange()" style="width:18px;height:18px;margin-top:4px;cursor:pointer;flex-shrink:0;" />` : `<div style="width:18px;flex-shrink:0;"></div>`}
         <div class="doc-avatar-lg">${esc(d.full_name?.charAt(0)?.toUpperCase() || 'D')}</div>
         <div class="approval-info">
           <h5>${esc(d.full_name)}</h5>
@@ -1874,6 +1897,71 @@
     closeModal('rejectDoctorModal');
     closeModal('doctorModal');
     pendingRejectId = null;
+    await loadApprovals();
+    await loadDashboard();
+  }
+
+  // ── BULK APPROVE / REJECT ────────────────────────────────────────
+  function getSelectedBulkIds() {
+    return Array.from(document.querySelectorAll('.bulk-select-checkbox:checked')).map(cb => cb.dataset.id);
+  }
+
+  function onBulkCheckboxChange() {
+    const ids = getSelectedBulkIds();
+    const bar = document.getElementById('bulkActionBar');
+    document.getElementById('bulkSelectedCount').textContent = ids.length;
+    bar.style.display = ids.length ? 'flex' : 'none';
+  }
+
+  function clearBulkSelection() {
+    document.querySelectorAll('.bulk-select-checkbox:checked').forEach(cb => cb.checked = false);
+    onBulkCheckboxChange();
+  }
+
+  async function bulkApprove() {
+    const ids = getSelectedBulkIds();
+    if (!ids.length) return;
+
+    confirmAction(
+      `Approuver ${ids.length} médecin(s) ?`,
+      'Ces médecins pourront se connecter et gérer leurs rendez-vous.',
+      'btn-success',
+      `Approuver (${ids.length})`,
+      async () => {
+        const { error } = await sb.from('doctors').update({ status: 'approved' }).in('id', ids);
+        if (error) { showToast('error', error.message); return; }
+        for (const id of ids) {
+          await logAdminAction('approve_doctor', 'doctors', id, { bulk: true, batch_size: ids.length });
+        }
+        showToast('success', `${ids.length} médecin(s) approuvé(s)`);
+        clearBulkSelection();
+        await loadApprovals();
+        await loadDashboard();
+      }
+    );
+  }
+
+  function openBulkRejectModal() {
+    const ids = getSelectedBulkIds();
+    if (!ids.length) return;
+    document.getElementById('bulkRejectCount').textContent = ids.length;
+    document.getElementById('bulkRejectReasonInput').value = '';
+    document.getElementById('bulkRejectModal').classList.add('active');
+  }
+
+  async function confirmBulkReject() {
+    const ids = getSelectedBulkIds();
+    if (!ids.length) { closeModal('bulkRejectModal'); return; }
+    const reason = document.getElementById('bulkRejectReasonInput').value.trim() || null;
+
+    const { error } = await sb.from('doctors').update({ status: 'rejected', rejection_reason: reason }).in('id', ids);
+    if (error) { showToast('error', error.message); return; }
+    for (const id of ids) {
+      await logAdminAction('reject_doctor', 'doctors', id, { bulk: true, batch_size: ids.length, ...(reason ? { reason } : {}) });
+    }
+    showToast('warning', `${ids.length} médecin(s) refusé(s)`);
+    closeModal('bulkRejectModal');
+    clearBulkSelection();
     await loadApprovals();
     await loadDashboard();
   }
@@ -2427,6 +2515,11 @@
   window.toggleSidebar        = toggleSidebar;
   window.approveDoctor        = approveDoctor;
   window.rejectDoctor         = rejectDoctor;
+  window.onBulkCheckboxChange = onBulkCheckboxChange;
+  window.clearBulkSelection   = clearBulkSelection;
+  window.bulkApprove          = bulkApprove;
+  window.openBulkRejectModal  = openBulkRejectModal;
+  window.confirmBulkReject    = confirmBulkReject;
   window.confirmRejectDoctor  = confirmRejectDoctor;
   window.viewDoctorDetail     = viewDoctorDetail;
   window.viewPatientDetail    = viewPatientDetail;
