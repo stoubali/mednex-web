@@ -980,6 +980,7 @@
               </tbody>
             </table>
           </div>
+          <div id="doctorsPager"></div>
         </div>
       </div>
 
@@ -1003,6 +1004,7 @@
               </tbody>
             </table>
           </div>
+          <div id="patientsPager"></div>
         </div>
       </div>
 
@@ -1092,6 +1094,7 @@
               </tbody>
             </table>
           </div>
+          <div id="apptsPager"></div>
         </div>
       </div>
 
@@ -1100,7 +1103,7 @@
       <!-- ═══════════════════════════════════════════ -->
       <div class="view" id="view-prescriptions">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
-          <input class="filter-input" type="text" placeholder="Patient, médicament…" id="rxSearch" oninput="filterRx()" style="min-width:200px;" />
+          <input class="filter-input" type="text" placeholder="Médicament…" id="rxSearch" oninput="filterRx()" style="min-width:200px;" />
           <select class="filter-input" id="rxStatusFilter" onchange="filterRx()">
             <option value="">Toutes</option>
             <option value="true">Actives</option>
@@ -1119,6 +1122,7 @@
               </tbody>
             </table>
           </div>
+          <div id="rxPager"></div>
         </div>
       </div>
 
@@ -1338,6 +1342,33 @@
   // ── XSS Guard ─────────────────────────────────────────────────
   function esc(v) {
     return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Debounce (search inputs now trigger real server queries, not
+  //    instant in-memory filtering, so we wait for typing to pause) ──
+  function debounce(fn, wait = 350) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+  }
+
+  // ── Pagination bar (shared across Doctors/Patients/Appointments/Rx) ──
+  const PAGE_SIZE = 20;
+  const EXPORT_MAX_ROWS = 5000; // safety cap: exports re-query ignoring pagination, so bound it
+
+  function renderPager(containerId, page, totalCount, pageSize, onPageChange) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;flex-wrap:wrap;">
+        <span style="font-size:0.78rem;color:#5A6F66;">${totalCount} résultat${totalCount>1?'s':''} · page ${page} / ${totalPages}</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="btn btn-outline btn-sm" ${page<=1?'disabled':''} data-pager-prev><i class="fas fa-chevron-left"></i></button>
+          <button class="btn btn-outline btn-sm" ${page>=totalPages?'disabled':''} data-pager-next><i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>`;
+    el.querySelector('[data-pager-prev]')?.addEventListener('click', () => { if (page > 1) onPageChange(page - 1); });
+    el.querySelector('[data-pager-next]')?.addEventListener('click', () => { if (page < totalPages) onPageChange(page + 1); });
   }
 
   // ── Audit Log ─────────────────────────────────────────────────
@@ -2045,17 +2076,38 @@
 
   // ── DOCTORS TABLE ─────────────────────────────────────────────
   let allDoctorsFull = [];
-  async function loadDoctorsTable() {
-    const { data } = await sb.from('doctors').select('*').order('full_name');
+  const doctorsState = { page: 1, search: '', status: '' };
+
+  function buildDoctorsQuery(base) {
+    let q = base;
+    if (doctorsState.status) q = q.eq('status', doctorsState.status);
+    if (doctorsState.search) {
+      const s = doctorsState.search;
+      q = q.or(`full_name.ilike.%${s}%,specialty.ilike.%${s}%,city.ilike.%${s}%`);
+    }
+    return q;
+  }
+
+  async function loadDoctorsTable(page = 1) {
+    doctorsState.page = page;
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    const { data, count, error } = await buildDoctorsQuery(
+      sb.from('doctors').select('*', { count: 'exact' })
+    ).order('full_name').range(from, to);
+
+    if (error) { console.error('loadDoctorsTable error:', error); showToast('error', error.message); return; }
     allDoctorsFull = data || [];
-    renderDoctorsTable(allDoctorsFull);
+    await renderDoctorsTable(allDoctorsFull);
+    renderPager('doctorsPager', page, count || 0, PAGE_SIZE, loadDoctorsTable);
   }
 
   async function renderDoctorsTable(doctors) {
     const tb = document.getElementById('doctorsTableBody');
     if (!doctors.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#8A9E96;">Aucun médecin</td></tr>'; return; }
-    // Load appointment counts
-    const { data: apptCounts } = await sb.from('appointments').select('doctor_id');
+    // Load appointment counts (only for doctors on this page, not the whole table)
+    const ids = doctors.map(d => d.id);
+    const { data: apptCounts } = await sb.from('appointments').select('doctor_id').in('doctor_id', ids);
     const apptMap = {};
     (apptCounts||[]).forEach(a => { apptMap[a.doctor_id] = (apptMap[a.doctor_id]||0) + 1; });
 
@@ -2075,33 +2127,49 @@
       </tr>`).join('');
   }
 
+  const filterDoctorsDebounced = debounce(() => loadDoctorsTable(1));
   function filterDoctors() {
-    const q      = document.getElementById('doctorSearch')?.value.toLowerCase() || '';
-    const status = document.getElementById('doctorStatusFilter')?.value || '';
-    let data = allDoctorsFull;
-    if (status) data = data.filter(d => d.status === status);
-    if (q) data = data.filter(d =>
-      d.full_name?.toLowerCase().includes(q) || d.specialty?.toLowerCase().includes(q) || d.city?.toLowerCase().includes(q)
-    );
-    renderDoctorsTable(data).catch(console.error);
+    doctorsState.search = document.getElementById('doctorSearch')?.value.trim() || '';
+    doctorsState.status = document.getElementById('doctorStatusFilter')?.value || '';
+    filterDoctorsDebounced();
   }
 
   // ── PATIENTS TABLE ────────────────────────────────────────────
   let allPatientsFull = [];
-  async function loadPatientsTable() {
-    const { data } = await sb.from('patients').select('*').order('full_name');
-    allPatientsFull = data || [];
-    renderPatientsTable(allPatientsFull);
+  const patientsState = { page: 1, search: '' };
+
+  function buildPatientsQuery(base) {
+    let q = base;
+    if (patientsState.search) {
+      const s = patientsState.search;
+      q = q.or(`full_name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%`);
+    }
+    return q;
   }
 
-  async function renderPatientsTable(patients) {
+  async function loadPatientsTable(page = 1) {
+    patientsState.page = page;
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    const { data, count, error } = await buildPatientsQuery(
+      sb.from('patients').select('*', { count: 'exact' })
+    ).order('full_name').range(from, to);
+
+    if (error) { console.error('loadPatientsTable error:', error); showToast('error', error.message); return; }
+    allPatientsFull = data || [];
+    await renderPatientsTable(allPatientsFull, count || 0);
+    renderPager('patientsPager', page, count || 0, PAGE_SIZE, loadPatientsTable);
+  }
+
+  async function renderPatientsTable(patients, totalCount) {
     const label = document.getElementById('patientCountLabel');
-    if (label) label.textContent = patients.length + ' patients';
+    if (label) label.textContent = (totalCount ?? patients.length) + ' patients';
     const tb = document.getElementById('patientsTableBody');
     if (!patients.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#8A9E96;">Aucun patient</td></tr>'; return; }
 
-    const { data: apptC } = await sb.from('appointments').select('patient_id');
-    const { data: rxC }   = await sb.from('prescriptions').select('patient_id').eq('is_active',true);
+    const ids = patients.map(p => p.id);
+    const { data: apptC } = await sb.from('appointments').select('patient_id').in('patient_id', ids);
+    const { data: rxC }   = await sb.from('prescriptions').select('patient_id').eq('is_active',true).in('patient_id', ids);
     const apptMap = {}, rxMap = {};
     (apptC||[]).forEach(a => { apptMap[a.patient_id] = (apptMap[a.patient_id]||0)+1; });
     (rxC||[]).forEach(r => { rxMap[r.patient_id] = (rxMap[r.patient_id]||0)+1; });
@@ -2118,13 +2186,10 @@
       </tr>`).join('');
   }
 
+  const filterPatientsDebounced = debounce(() => loadPatientsTable(1));
   function filterPatients() {
-    const q = document.getElementById('patientSearch')?.value.toLowerCase() || '';
-    let data = allPatientsFull;
-    if (q) data = data.filter(p =>
-      p.full_name?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q) || p.phone?.includes(q)
-    );
-    renderPatientsTable(data);
+    patientsState.search = document.getElementById('patientSearch')?.value.trim() || '';
+    filterPatientsDebounced();
   }
 
   async function viewPatientDetail(id) {
@@ -2198,10 +2263,30 @@
 
   // ── APPOINTMENTS TABLE ────────────────────────────────────────
   let allApptsFull = [];
-  async function loadApptsTable() {
-    const { data } = await sb.from('appointment_details').select('*').order('date',{ascending:false}).limit(200);
+  const apptsState = { page: 1, search: '', status: '' };
+
+  function buildApptsQuery(base) {
+    let q = base;
+    if (apptsState.status) q = q.eq('status', apptsState.status);
+    if (apptsState.search) {
+      const s = apptsState.search;
+      q = q.or(`patient_name.ilike.%${s}%,doctor_name.ilike.%${s}%`);
+    }
+    return q;
+  }
+
+  async function loadApptsTable(page = 1) {
+    apptsState.page = page;
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    const { data, count, error } = await buildApptsQuery(
+      sb.from('appointment_details').select('*', { count: 'exact' })
+    ).order('date', { ascending: false }).range(from, to);
+
+    if (error) { console.error('loadApptsTable error:', error); showToast('error', error.message); return; }
     allApptsFull = data || [];
     renderApptsTable(allApptsFull);
+    renderPager('apptsPager', page, count || 0, PAGE_SIZE, loadApptsTable);
   }
 
   function renderApptsTable(appts) {
@@ -2221,14 +2306,11 @@
       </tr>`).join('');
   }
 
+  const filterApptsDebounced = debounce(() => loadApptsTable(1));
   function filterAppts() {
-    const q = document.getElementById('apptSearch')?.value.toLowerCase() || '';
-    const s = document.getElementById('apptStatusFilter')?.value || '';
-    let data = allApptsFull;
-    if (s) data = data.filter(a => a.status === s);
-    if (q) data = data.filter(a =>
-      a.patient_name?.toLowerCase().includes(q) || a.doctor_name?.toLowerCase().includes(q)
-    );
+    apptsState.search = document.getElementById('apptSearch')?.value.trim() || '';
+    apptsState.status = document.getElementById('apptStatusFilter')?.value || '';
+    filterApptsDebounced();
     renderApptsTable(data);
   }
 
@@ -2238,16 +2320,36 @@
       if (error) { showToast('error', error.message); return; }
       await logAdminAction('cancel_appointment', 'appointments', id);
       showToast('warning', 'Rendez-vous annulé');
-      await loadApptsTable();
+      await loadApptsTable(apptsState.page);
     });
   }
 
   // ── PRESCRIPTIONS TABLE ───────────────────────────────────────
   let allRxFull = [];
-  async function loadRxTable() {
-    const { data } = await sb.from('prescriptions').select('*,doctors(full_name),patients(full_name)').order('created_at',{ascending:false}).limit(200);
+  const rxState = { page: 1, search: '', activeFilter: '' };
+
+  function buildRxQuery(base) {
+    let q = base;
+    if (rxState.activeFilter !== '') q = q.eq('is_active', rxState.activeFilter === 'true');
+    // Note: search is medication-only (server-side). Patient-name search was dropped
+    // here because filtering on a joined table's column via .or() is unreliable in
+    // PostgREST — safer to keep this predictable than silently miss results.
+    if (rxState.search) q = q.ilike('medication', `%${rxState.search}%`);
+    return q;
+  }
+
+  async function loadRxTable(page = 1) {
+    rxState.page = page;
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    const { data, count, error } = await buildRxQuery(
+      sb.from('prescriptions').select('*,doctors(full_name),patients(full_name)', { count: 'exact' })
+    ).order('created_at', { ascending: false }).range(from, to);
+
+    if (error) { console.error('loadRxTable error:', error); showToast('error', error.message); return; }
     allRxFull = data || [];
     renderRxTable(allRxFull);
+    renderPager('rxPager', page, count || 0, PAGE_SIZE, loadRxTable);
   }
 
   function renderRxTable(rx) {
@@ -2264,15 +2366,11 @@
       </tr>`).join('');
   }
 
+  const filterRxDebounced = debounce(() => loadRxTable(1));
   function filterRx() {
-    const q = document.getElementById('rxSearch')?.value.toLowerCase() || '';
-    const s = document.getElementById('rxStatusFilter')?.value;
-    let data = allRxFull;
-    if (s !== '') data = data.filter(r => String(r.is_active) === s);
-    if (q) data = data.filter(r =>
-      r.patients?.full_name?.toLowerCase().includes(q) || r.medication?.toLowerCase().includes(q)
-    );
-    renderRxTable(data);
+    rxState.search = document.getElementById('rxSearch')?.value.trim() || '';
+    rxState.activeFilter = document.getElementById('rxStatusFilter')?.value ?? '';
+    filterRxDebounced();
   }
 
   // ── CSV EXPORT (per-view) ────────────────────────────────────────
@@ -2297,14 +2395,12 @@
     ], 'utilisateurs');
   }
 
-  function exportDoctorsCSV() {
-    const q      = document.getElementById('doctorSearch')?.value.toLowerCase() || '';
-    const status = document.getElementById('doctorStatusFilter')?.value || '';
-    let data = allDoctorsFull;
-    if (status) data = data.filter(d => d.status === status);
-    if (q) data = data.filter(d =>
-      d.full_name?.toLowerCase().includes(q) || d.specialty?.toLowerCase().includes(q) || d.city?.toLowerCase().includes(q)
-    );
+  async function exportDoctorsCSV() {
+    const { data, error } = await buildDoctorsQuery(
+      sb.from('doctors').select('*')
+    ).order('full_name').limit(EXPORT_MAX_ROWS);
+    if (error) { showToast('error', error.message); return; }
+    if ((data||[]).length === EXPORT_MAX_ROWS) showToast('warning', `Export limité à ${EXPORT_MAX_ROWS} lignes`);
     exportToCSV(data, [
       ['Nom', 'full_name'],
       ['Email', 'email'],
@@ -2318,12 +2414,12 @@
     ], 'medecins');
   }
 
-  function exportPatientsCSV() {
-    const q = document.getElementById('patientSearch')?.value.toLowerCase() || '';
-    let data = allPatientsFull;
-    if (q) data = data.filter(p =>
-      p.full_name?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q) || p.phone?.includes(q)
-    );
+  async function exportPatientsCSV() {
+    const { data, error } = await buildPatientsQuery(
+      sb.from('patients').select('*')
+    ).order('full_name').limit(EXPORT_MAX_ROWS);
+    if (error) { showToast('error', error.message); return; }
+    if ((data||[]).length === EXPORT_MAX_ROWS) showToast('warning', `Export limité à ${EXPORT_MAX_ROWS} lignes`);
     exportToCSV(data, [
       ['Nom', 'full_name'],
       ['Email', p => p.email || '–'],
@@ -2334,14 +2430,12 @@
     ], 'patients');
   }
 
-  function exportApptsCSV() {
-    const q = document.getElementById('apptSearch')?.value.toLowerCase() || '';
-    const s = document.getElementById('apptStatusFilter')?.value || '';
-    let data = allApptsFull;
-    if (s) data = data.filter(a => a.status === s);
-    if (q) data = data.filter(a =>
-      a.patient_name?.toLowerCase().includes(q) || a.doctor_name?.toLowerCase().includes(q)
-    );
+  async function exportApptsCSV() {
+    const { data, error } = await buildApptsQuery(
+      sb.from('appointment_details').select('*')
+    ).order('date', { ascending: false }).limit(EXPORT_MAX_ROWS);
+    if (error) { showToast('error', error.message); return; }
+    if ((data||[]).length === EXPORT_MAX_ROWS) showToast('warning', `Export limité à ${EXPORT_MAX_ROWS} lignes`);
     exportToCSV(data, [
       ['Patient', a => a.patient_name || '–'],
       ['Médecin', a => a.doctor_name || '–'],
@@ -2353,14 +2447,12 @@
     ], 'rendez-vous');
   }
 
-  function exportRxCSV() {
-    const q = document.getElementById('rxSearch')?.value.toLowerCase() || '';
-    const s = document.getElementById('rxStatusFilter')?.value;
-    let data = allRxFull;
-    if (s !== '') data = data.filter(r => String(r.is_active) === s);
-    if (q) data = data.filter(r =>
-      r.patients?.full_name?.toLowerCase().includes(q) || r.medication?.toLowerCase().includes(q)
-    );
+  async function exportRxCSV() {
+    const { data, error } = await buildRxQuery(
+      sb.from('prescriptions').select('*,doctors(full_name),patients(full_name)')
+    ).order('created_at', { ascending: false }).limit(EXPORT_MAX_ROWS);
+    if (error) { showToast('error', error.message); return; }
+    if ((data||[]).length === EXPORT_MAX_ROWS) showToast('warning', `Export limité à ${EXPORT_MAX_ROWS} lignes`);
     exportToCSV(data, [
       ['Patient', r => r.patients?.full_name || '–'],
       ['Médecin', r => r.doctors?.full_name || '–'],
