@@ -720,6 +720,10 @@
         <div class="nav-icon"><i class="fas fa-clipboard-list"></i></div>
         Journal d'audit
       </button>
+      <button class="nav-item" onclick="showView('adminmgmt', this)">
+        <div class="nav-icon"><i class="fas fa-user-shield"></i></div>
+        Gestion des admins
+      </button>
       <button class="nav-item" onclick="showView('settings', this)">
         <div class="nav-icon"><i class="fas fa-cog"></i></div>
         Paramètres
@@ -1156,6 +1160,31 @@
       </div>
 
       <!-- ═══════════════════════════════════════════ -->
+      <!-- VIEW: ADMIN MANAGEMENT                      -->
+      <!-- ═══════════════════════════════════════════ -->
+      <div class="view" id="view-adminmgmt">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+          <p style="font-size:0.82rem;color:#5A6F66;max-width:520px;">
+            <i class="fas fa-info-circle"></i>
+            Tous les administrateurs peuvent consulter cette liste. Seuls les <strong>super admins</strong> peuvent inviter, promouvoir, rétrograder ou supprimer des comptes.
+          </p>
+          <button class="btn btn-primary btn-sm" id="inviteAdminBtn" onclick="openInviteAdminModal()" style="display:none;"><i class="fas fa-user-plus"></i> Inviter un admin</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Ajouté le</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="adminMgmtTableBody">
+                <tr><td colspan="5" style="text-align:center;padding:30px;color:#8A9E96;"><i class="fas fa-spinner fa-spin"></i> Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════ -->
       <!-- VIEW: SETTINGS                              -->
       <!-- ═══════════════════════════════════════════ -->
       <div class="view" id="view-settings">
@@ -1288,6 +1317,28 @@
     </div>
   </div>
 
+  <!-- Invite Admin Modal (super admin only) -->
+  <div class="modal-overlay" id="inviteAdminModal">
+    <div class="modal-box" style="max-width:440px;">
+      <h3><i class="fas fa-user-plus" style="color:var(--primary);"></i> Inviter un administrateur</h3>
+      <p style="font-size:0.85rem;color:#5A6F66;margin-bottom:14px;">Un email d'invitation Supabase sera envoyé pour qu'ils définissent leur mot de passe.</p>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <label style="font-weight:500;font-size:0.8rem;color:#5A6F66;">Nom complet</label>
+          <input type="text" id="inviteAdminName" placeholder="Nom de l'administrateur" style="width:100%;padding:10px 14px;border-radius:60px;border:1px solid var(--border);font-family:inherit;margin-top:4px;" />
+        </div>
+        <div>
+          <label style="font-weight:500;font-size:0.8rem;color:#5A6F66;">Email</label>
+          <input type="email" id="inviteAdminEmail" placeholder="admin@mednex.com" style="width:100%;padding:10px 14px;border-radius:60px;border:1px solid var(--border);font-family:inherit;margin-top:4px;" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal('inviteAdminModal')">Annuler</button>
+        <button class="btn btn-primary" id="inviteAdminSubmitBtn" onclick="confirmInviteAdmin()"><i class="fas fa-paper-plane"></i> Envoyer l'invitation</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-container" id="toastContainer"></div>
 
   <script>
@@ -1318,7 +1369,7 @@
 
     const { data: admin, error } = await sb
       .from('admin_users')
-      .select('id, full_name')
+      .select('id, full_name, is_super_admin')
       .eq('auth_user_id', session.user.id)
       .single();
 
@@ -1331,6 +1382,7 @@
 
     window.adminFullName = admin.full_name;
     window.__adminId = admin.id;
+    window.__isSuperAdmin = !!admin.is_super_admin;
     const nameLabel = document.getElementById('adminNameLabel');
     if (nameLabel && admin.full_name) nameLabel.textContent = admin.full_name;
     document.body.style.visibility = 'visible';
@@ -1462,6 +1514,7 @@
     appointments: ['Rendez-vous', 'Tous les rendez-vous planifiés'],
     prescriptions: ['Ordonnances', 'Toutes les ordonnances émises'],
     auditlog: ['Journal d\'audit', 'Historique des actions administrateur'],
+    adminmgmt: ['Gestion des admins', 'Comptes ayant accès au tableau de bord administrateur'],
     settings: ['Paramètres', 'Configuration de la plateforme'],
   };
 
@@ -1499,6 +1552,7 @@
     if (name === 'appointments') await loadApptsTable();
     if (name === 'prescriptions') await loadRxTable();
     if (name === 'auditlog') await loadAuditLog();
+    if (name === 'adminmgmt') await loadAdminMgmt();
     if (name === 'settings')  { await loadMaintenanceState(); await loadRegistrationState(); }
   }
 
@@ -2471,6 +2525,10 @@
     cancel_appointment: { label: 'Annulation RDV', badge: 'badge-warning' },
     toggle_maintenance: { label: 'Mode maintenance', badge: 'badge-info' },
     toggle_registration: { label: 'Inscriptions patients', badge: 'badge-info' },
+    invite_admin: { label: 'Invitation admin', badge: 'badge-purple' },
+    remove_admin: { label: 'Suppression admin', badge: 'badge-danger' },
+    promote_super_admin: { label: 'Promotion super admin', badge: 'badge-purple' },
+    demote_super_admin: { label: 'Rétrogradation super admin', badge: 'badge-warning' },
   };
 
   async function loadAuditLog() {
@@ -2525,6 +2583,126 @@
       l.target_table?.toLowerCase().includes(q)
     );
     renderAuditLog(data);
+  }
+
+  // ── ADMIN MANAGEMENT ─────────────────────────────────────────────
+  // All mutations (invite/remove/promote/demote) go through the
+  // admin-management Edge Function — RLS denies direct client writes
+  // to admin_users entirely (see 2.5 migration). This view only ever
+  // reads directly; every button click calls the function.
+
+  async function callAdminManagement(payload) {
+    const { data, error } = await sb.functions.invoke('admin-management', { body: payload });
+    if (error) {
+      // supabase-js wraps non-2xx responses as a generic error; try to surface
+      // the function's own JSON error message if present on the response.
+      let msg = error.message || 'Erreur inconnue';
+      try {
+        const ctx = await error.context?.json?.();
+        if (ctx?.error) msg = ctx.error;
+      } catch (_) { /* ignore parse failure, fall back to generic message */ }
+      return { ok: false, error: msg };
+    }
+    if (data?.error) return { ok: false, error: data.error };
+    return { ok: true, data };
+  }
+
+  async function loadAdminMgmt() {
+    document.getElementById('inviteAdminBtn').style.display = window.__isSuperAdmin ? 'inline-flex' : 'none';
+
+    const { data, error } = await sb.from('admin_users').select('*').order('created_at', { ascending: true });
+    if (error) {
+      document.getElementById('adminMgmtTableBody').innerHTML =
+        `<tr><td colspan="5" style="text-align:center;padding:30px;color:#EF4444;">Erreur: ${esc(error.message)}</td></tr>`;
+      return;
+    }
+    renderAdminMgmt(data || []);
+  }
+
+  function renderAdminMgmt(admins) {
+    const tb = document.getElementById('adminMgmtTableBody');
+    if (!admins.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:#8A9E96;">Aucun administrateur</td></tr>'; return; }
+
+    tb.innerHTML = admins.map(a => {
+      const isSelf = a.id === window.__adminId;
+      const canManage = window.__isSuperAdmin && !isSelf;
+      return `
+      <tr>
+        <td><strong>${esc(a.full_name)}</strong>${isSelf ? ' <span class="badge badge-neutral" style="font-size:0.6rem;">vous</span>' : ''}</td>
+        <td>${esc(a.email || '–')}</td>
+        <td><span class="badge ${a.is_super_admin ? 'badge-purple' : 'badge-neutral'}">${a.is_super_admin ? 'Super admin' : 'Admin'}</span></td>
+        <td style="font-size:0.78rem;">${formatDate(a.created_at)}</td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${canManage ? `
+            <button class="btn btn-outline btn-sm" onclick="adminMgmtToggleSuper('${esc(a.id)}', ${!a.is_super_admin})">
+              <i class="fas fa-${a.is_super_admin ? 'arrow-down' : 'arrow-up'}"></i> ${a.is_super_admin ? 'Rétrograder' : 'Promouvoir'}
+            </button>
+            <button class="btn btn-outline btn-sm" style="color:#EF4444;border-color:#EF4444;" onclick="adminMgmtRemove('${esc(a.id)}','${esc(a.full_name)}')">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          ` : '<span style="font-size:0.75rem;color:#8A9E96;">–</span>'}
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function openInviteAdminModal() {
+    document.getElementById('inviteAdminName').value = '';
+    document.getElementById('inviteAdminEmail').value = '';
+    document.getElementById('inviteAdminModal').classList.add('active');
+  }
+
+  async function confirmInviteAdmin() {
+    const full_name = document.getElementById('inviteAdminName').value.trim();
+    const email = document.getElementById('inviteAdminEmail').value.trim().toLowerCase();
+    if (!full_name || full_name.length < 3) { showToast('error', 'Nom complet invalide'); return; }
+    if (!email || !/^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/.test(email)) { showToast('error', 'Email invalide'); return; }
+
+    const btn = document.getElementById('inviteAdminSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Envoi…';
+
+    const result = await callAdminManagement({ action: 'invite', email, full_name });
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Envoyer l\'invitation';
+
+    if (!result.ok) { showToast('error', result.error); return; }
+    showToast('success', `Invitation envoyée à ${email}`);
+    closeModal('inviteAdminModal');
+    await loadAdminMgmt();
+  }
+
+  function adminMgmtRemove(id, name) {
+    confirmAction(
+      `Supprimer ${name} des administrateurs ?`,
+      'Cette personne perdra immédiatement l\'accès au tableau de bord administrateur. Son compte de connexion reste actif ailleurs si elle en a un autre.',
+      'btn-danger',
+      'Supprimer',
+      async () => {
+        const result = await callAdminManagement({ action: 'remove', id });
+        if (!result.ok) { showToast('error', result.error); return; }
+        showToast('warning', `${name} retiré des administrateurs`);
+        await loadAdminMgmt();
+      }
+    );
+  }
+
+  function adminMgmtToggleSuper(id, newValue) {
+    confirmAction(
+      newValue ? 'Promouvoir en super admin ?' : 'Rétrograder ce super admin ?',
+      newValue
+        ? 'Cette personne pourra à son tour inviter, promouvoir et supprimer des administrateurs.'
+        : 'Cette personne redeviendra un admin normal, sans droit de gestion des autres comptes.',
+      newValue ? 'btn-success' : 'btn-outline',
+      newValue ? 'Promouvoir' : 'Rétrograder',
+      async () => {
+        const result = await callAdminManagement({ action: 'set_super_admin', id, value: newValue });
+        if (!result.ok) { showToast('error', result.error); return; }
+        showToast('success', newValue ? 'Promu super admin' : 'Rétrogradé en admin');
+        await loadAdminMgmt();
+      }
+    );
   }
 
   // ── GLOBAL SEARCH ─────────────────────────────────────────────
@@ -2629,6 +2807,11 @@
   window.exportApptsCSV       = exportApptsCSV;
   window.exportRxCSV          = exportRxCSV;
   window.loadAuditLog         = loadAuditLog;
+  window.loadAdminMgmt        = loadAdminMgmt;
+  window.openInviteAdminModal = openInviteAdminModal;
+  window.confirmInviteAdmin   = confirmInviteAdmin;
+  window.adminMgmtRemove      = adminMgmtRemove;
+  window.adminMgmtToggleSuper = adminMgmtToggleSuper;
   window.filterAuditLog       = filterAuditLog;
   window.logAdminAction       = logAdminAction;
   window.adminCancelAppt      = adminCancelAppt;
