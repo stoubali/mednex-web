@@ -752,9 +752,10 @@
         <p id="viewSubtitle">Tableau de bord administrateur · MedNex</p>
       </div>
       <div class="topbar-right">
-        <div class="topbar-search">
+        <div class="topbar-search" style="position:relative;">
           <i class="fas fa-search" style="color:#8A9E96;font-size:0.8rem;"></i>
-          <input type="text" placeholder="Recherche globale…" id="globalSearch" oninput="handleGlobalSearch()" />
+          <input type="text" placeholder="Recherche globale…" id="globalSearch" oninput="handleGlobalSearch()" autocomplete="off" />
+          <div id="globalSearchResults" style="display:none;position:absolute;top:calc(100% + 8px);left:0;right:0;min-width:340px;max-height:420px;overflow-y:auto;background:white;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,0.18);border:1px solid var(--border);z-index:500;"></div>
         </div>
         <button class="icon-btn" title="Notifications" id="notifBtn">
           <i class="fas fa-bell"></i>
@@ -828,7 +829,13 @@
           <div class="card card-pad">
             <div class="section-header">
               <div class="section-title"><i class="fas fa-bolt"></i> Activité Récente</div>
-              <span class="badge badge-success" id="liveTag"><i class="fas fa-circle" style="font-size:0.4rem;"></i> Live</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="display:flex;background:var(--bg);border-radius:60px;padding:2px;">
+                  <button class="btn btn-sm" id="activityTabAll" onclick="setActivityFeedMode('all')" style="border-radius:60px;padding:4px 12px;font-size:0.7rem;background:var(--primary);color:white;">Toute l'activité</button>
+                  <button class="btn btn-sm" id="activityTabMine" onclick="setActivityFeedMode('mine')" style="border-radius:60px;padding:4px 12px;font-size:0.7rem;background:transparent;color:#5A6F66;">Mes actions</button>
+                </div>
+                <span class="badge badge-success" id="liveTag"><i class="fas fa-circle" style="font-size:0.4rem;"></i> Live</span>
+              </div>
             </div>
             <div id="activityFeed">
               <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Chargement…</p></div>
@@ -881,6 +888,20 @@
             <div class="health-item"><div class="health-dot ok"></div><div class="health-label">API REST</div><div class="health-val">238 ms</div></div>
             <div class="health-item" id="pdfHealth"><div class="health-dot warn"></div><div class="health-label">Serveur PDF local</div><div class="health-val" id="pdfStatus">Vérification…</div></div>
             <div class="health-item"><div class="health-dot ok"></div><div class="health-label">Vercel CDN</div><div class="health-val">Actif</div></div>
+          </div>
+        </div>
+
+        <!-- Trends over time -->
+        <div class="card card-pad" style="margin-bottom:24px;">
+          <div class="section-header">
+            <div class="section-title"><i class="fas fa-chart-line"></i> Tendances (8 dernières semaines)</div>
+            <div style="display:flex;align-items:center;gap:14px;font-size:0.75rem;color:#5A6F66;">
+              <span style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:2px;background:#0B3D2E;display:inline-block;"></span>Rendez-vous</span>
+              <span style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:2px;background:#3B82F6;display:inline-block;"></span>Nouveaux comptes</span>
+            </div>
+          </div>
+          <div id="trendsChart" style="min-height:100px;">
+            <div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div>
           </div>
         </div>
       </div>
@@ -1784,8 +1805,71 @@
     const { data: doctors } = await sb.from('doctors').select('specialty').eq('status','approved');
     renderSpecialtyStats(doctors || []);
 
+    // Trends chart
+    await loadTrends();
+
     // PDF health check
     checkPDFServer();
+  }
+
+  // ── TRENDS CHART ──────────────────────────────────────────────
+  const TRENDS_WEEKS = 8;
+
+  function weekBucketsFrom(startDate, weeks) {
+    // Returns an array of { start, end, label } for `weeks` consecutive
+    // 7-day buckets ending today (oldest first).
+    const buckets = [];
+    const today = new Date(startDate);
+    today.setHours(23, 59, 59, 999);
+    for (let i = weeks - 1; i >= 0; i--) {
+      const end = new Date(today); end.setDate(end.getDate() - i * 7);
+      const start = new Date(end); start.setDate(start.getDate() - 6); start.setHours(0,0,0,0);
+      buckets.push({ start, end, label: `${start.getDate()}/${start.getMonth()+1}` });
+    }
+    return buckets;
+  }
+
+  function countByWeek(dates, buckets) {
+    return buckets.map(b => dates.filter(d => {
+      const t = new Date(d).getTime();
+      return t >= b.start.getTime() && t <= b.end.getTime();
+    }).length);
+  }
+
+  async function loadTrends() {
+    const buckets = weekBucketsFrom(new Date(), TRENDS_WEEKS);
+    const rangeStart = buckets[0].start.toISOString();
+
+    const [{ data: appts }, { data: docs }, { data: pats }] = await Promise.all([
+      sb.from('appointments').select('created_at').gte('created_at', rangeStart),
+      sb.from('doctors').select('created_at').gte('created_at', rangeStart),
+      sb.from('patients').select('created_at').gte('created_at', rangeStart),
+    ]);
+
+    const apptCounts = countByWeek((appts||[]).map(a=>a.created_at), buckets);
+    const accountDates = [...(docs||[]).map(d=>d.created_at), ...(pats||[]).map(p=>p.created_at)];
+    const accountCounts = countByWeek(accountDates, buckets);
+
+    const maxVal = Math.max(1, ...apptCounts, ...accountCounts);
+
+    const el = document.getElementById('trendsChart');
+    if (!apptCounts.some(v=>v>0) && !accountCounts.some(v=>v>0)) {
+      el.innerHTML = '<div class="empty-state"><i class="fas fa-chart-line"></i><p>Aucune donnée sur cette période</p></div>';
+      return;
+    }
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:flex-end;gap:10px;height:120px;padding-top:10px;">
+        ${buckets.map((b, i) => `
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <div style="display:flex;align-items:flex-end;gap:3px;height:90px;width:100%;justify-content:center;">
+              <div title="${apptCounts[i]} rendez-vous" style="width:40%;max-width:16px;height:${Math.max(3,(apptCounts[i]/maxVal)*90)}px;background:linear-gradient(180deg,#2c7a5e,#0B3D2E);border-radius:3px 3px 0 0;transition:height .6s cubic-bezier(.34,1.56,.64,1);"></div>
+              <div title="${accountCounts[i]} nouveaux comptes" style="width:40%;max-width:16px;height:${Math.max(3,(accountCounts[i]/maxVal)*90)}px;background:linear-gradient(180deg,#60a5fa,#3B82F6);border-radius:3px 3px 0 0;transition:height .6s cubic-bezier(.34,1.56,.64,1);"></div>
+            </div>
+            <div style="font-size:0.6rem;color:#8A9E96;font-weight:500;">${esc(b.label)}</div>
+          </div>
+        `).join('')}
+      </div>`;
   }
 
   function renderDashPending(doctors) {
@@ -1809,7 +1893,63 @@
       </div>`).join('');
   }
 
+  let activityFeedMode = 'all';
+
+  function setActivityFeedMode(mode) {
+    activityFeedMode = mode;
+    document.getElementById('activityTabAll').style.background = mode === 'all' ? 'var(--primary)' : 'transparent';
+    document.getElementById('activityTabAll').style.color = mode === 'all' ? 'white' : '#5A6F66';
+    document.getElementById('activityTabMine').style.background = mode === 'mine' ? 'var(--primary)' : 'transparent';
+    document.getElementById('activityTabMine').style.color = mode === 'mine' ? 'white' : '#5A6F66';
+    loadActivityFeed();
+  }
+
+  function renderActivityItems(items) {
+    const el = document.getElementById('activityFeed');
+    if (!items.length) {
+      el.innerHTML = '<div class="empty-state"><i class="fas fa-history"></i><p>Aucune activité récente</p></div>';
+      return;
+    }
+    el.innerHTML = items.slice(0,7).map(item => `
+      <div class="activity-item">
+        <div class="activity-dot ${item.color}"><i class="fas ${item.icon}"></i></div>
+        <div class="activity-text">
+          <p>${item.text}</p>
+          <div class="activity-time"><i class="far fa-clock"></i> ${esc(item.time)}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  async function loadMyActivityFeed() {
+    const { data, error } = await sb
+      .from('admin_audit_log')
+      .select('*')
+      .eq('admin_id', window.__adminId)
+      .order('created_at', { ascending: false })
+      .limit(7);
+
+    if (error) {
+      document.getElementById('activityFeed').innerHTML =
+        `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erreur: ${esc(error.message)}</p></div>`;
+      return;
+    }
+
+    const items = (data || []).map(l => {
+      const meta = auditActionLabels[l.action] || { label: l.action, badge: 'badge-neutral' };
+      const colorMap = { 'badge-success':'green', 'badge-danger':'red', 'badge-warning':'yellow', 'badge-purple':'purple', 'badge-info':'blue' };
+      return {
+        color: colorMap[meta.badge] || 'blue',
+        icon: 'fa-user-shield',
+        text: `<strong>Vous</strong> — ${esc(meta.label)}${l.target_table ? ` (${esc(l.target_table)})` : ''}`,
+        time: timeAgo(l.created_at),
+      };
+    });
+    renderActivityItems(items);
+  }
+
   async function loadActivityFeed() {
+    if (activityFeedMode === 'mine') { await loadMyActivityFeed(); return; }
+
     const [
       { data: recentAppts }, { data: recentRx }, { data: recentDocs }
     ] = await Promise.all([
@@ -1837,21 +1977,9 @@
     }));
 
     items.sort((a,b) => 0); // already mixed
-
-    const el = document.getElementById('activityFeed');
-    if (!items.length) {
-      el.innerHTML = '<div class="empty-state"><i class="fas fa-history"></i><p>Aucune activité récente</p></div>';
-      return;
-    }
-    el.innerHTML = items.slice(0,7).map(item => `
-      <div class="activity-item">
-        <div class="activity-dot ${item.color}"><i class="fas ${item.icon}"></i></div>
-        <div class="activity-text">
-          <p>${item.text}</p>
-          <div class="activity-time"><i class="far fa-clock"></i> ${esc(item.time)}</div>
-        </div>
-      </div>`).join('');
+    renderActivityItems(items);
   }
+
 
   function renderSpecialtyStats(doctors) {
     const counts = {};
@@ -2706,17 +2834,109 @@
   }
 
   // ── GLOBAL SEARCH ─────────────────────────────────────────────
-  function handleGlobalSearch() {
-    // Simple highlight: switch to users view and filter
-    const q = document.getElementById('globalSearch').value;
-    if (q.length > 1) {
-      showView('users', null);
-      setTimeout(() => {
-        const ui = document.getElementById('userSearch');
-        if (ui) { ui.value = q; filterUsers(); }
-      }, 100);
-    }
+  // Searches Doctors, Patients, Appointments, and Prescriptions in parallel
+  // (small per-category limit — this is a quick-jump tool, not a report).
+  // Users tab is intentionally not included: it's a client-side merge of
+  // doctors+patients with no server-side search of its own (see 2.4 notes).
+  const GLOBAL_SEARCH_LIMIT = 5;
+
+  async function runGlobalSearch(q) {
+    const [doctors, patients, appts, rx] = await Promise.all([
+      sb.from('doctors').select('id, full_name, specialty, status')
+        .or(`full_name.ilike.%${q}%,specialty.ilike.%${q}%,city.ilike.%${q}%`)
+        .limit(GLOBAL_SEARCH_LIMIT),
+      sb.from('patients').select('id, full_name, email, phone')
+        .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+        .limit(GLOBAL_SEARCH_LIMIT),
+      sb.from('appointment_details').select('id, patient_name, doctor_name, date, status')
+        .or(`patient_name.ilike.%${q}%,doctor_name.ilike.%${q}%`)
+        .limit(GLOBAL_SEARCH_LIMIT),
+      sb.from('prescriptions').select('id, medication, prescribed_at, is_active')
+        .ilike('medication', `%${q}%`)
+        .limit(GLOBAL_SEARCH_LIMIT),
+    ]);
+    return {
+      doctors: doctors.data || [],
+      patients: patients.data || [],
+      appts: appts.data || [],
+      rx: rx.data || [],
+    };
   }
+
+  function renderGlobalSearchResults(q, results) {
+    const panel = document.getElementById('globalSearchResults');
+    const { doctors, patients, appts, rx } = results;
+    const totalCount = doctors.length + patients.length + appts.length + rx.length;
+
+    if (!totalCount) {
+      panel.innerHTML = `<div style="padding:20px;text-align:center;color:#8A9E96;font-size:0.85rem;">Aucun résultat pour « ${esc(q)} »</div>`;
+      panel.style.display = 'block';
+      return;
+    }
+
+    const section = (title, icon, items, renderItem) => !items.length ? '' : `
+      <div style="padding:10px 16px 4px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--accent);">${icon} ${title}</div>
+      ${items.map(renderItem).join('')}
+    `;
+
+    const row = (title, subtitle, onclick) => `
+      <div onclick="${onclick}" style="padding:10px 16px;cursor:pointer;border-bottom:1px solid #F0F4F2;transition:background .15s;" onmouseover="this.style.background='#F7FAF8'" onmouseout="this.style.background='white'">
+        <div style="font-size:0.85rem;font-weight:600;color:#0B1E18;">${title}</div>
+        <div style="font-size:0.75rem;color:#5A6F66;">${subtitle}</div>
+      </div>`;
+
+    panel.innerHTML =
+      section('Médecins', '<i class="fas fa-user-md"></i>', doctors, d =>
+        row(esc(d.full_name), `${esc(d.specialty||'–')} · ${esc(d.status)}`, `globalSearchGoTo('doctors','${esc(d.full_name)}')`)
+      ) +
+      section('Patients', '<i class="fas fa-hospital-user"></i>', patients, p =>
+        row(esc(p.full_name), esc(p.email || p.phone || '–'), `globalSearchGoTo('patients','${esc(p.full_name)}')`)
+      ) +
+      section('Rendez-vous', '<i class="fas fa-calendar-alt"></i>', appts, a =>
+        row(`${esc(a.patient_name)} → ${esc(a.doctor_name)}`, `${esc(a.date)} · ${esc(a.status)}`, `globalSearchGoTo('appointments','${esc(a.patient_name)}')`)
+      ) +
+      section('Ordonnances', '<i class="fas fa-prescription"></i>', rx, r =>
+        row(esc(r.medication), `${esc(r.prescribed_at||'–')} · ${r.is_active?'Active':'Brouillon'}`, `globalSearchGoTo('prescriptions','${esc(r.medication)}')`)
+      );
+    panel.style.display = 'block';
+  }
+
+  const globalSearchDebounced = debounce(async (q) => {
+    const results = await runGlobalSearch(q);
+    renderGlobalSearchResults(q, results);
+  }, 300);
+
+  function handleGlobalSearch() {
+    const q = document.getElementById('globalSearch').value.trim();
+    const panel = document.getElementById('globalSearchResults');
+    if (q.length < 2) { panel.style.display = 'none'; return; }
+    globalSearchDebounced(q);
+  }
+
+  function globalSearchGoTo(view, searchTerm) {
+    document.getElementById('globalSearchResults').style.display = 'none';
+    document.getElementById('globalSearch').value = '';
+    showView(view, null);
+    // Bypass each tab's own debounce for an instant landing, since the
+    // user already waited through the global-search debounce once.
+    setTimeout(() => {
+      if (view === 'doctors')      { doctorsState.search = searchTerm; document.getElementById('doctorSearch').value = searchTerm; loadDoctorsTable(1); }
+      if (view === 'patients')     { patientsState.search = searchTerm; document.getElementById('patientSearch').value = searchTerm; loadPatientsTable(1); }
+      if (view === 'appointments') { apptsState.search = searchTerm; document.getElementById('apptSearch').value = searchTerm; loadApptsTable(1); }
+      if (view === 'prescriptions'){ rxState.search = searchTerm; document.getElementById('rxSearch').value = searchTerm; loadRxTable(1); }
+    }, 50);
+  }
+
+  // Close the dropdown on outside click or Escape
+  document.addEventListener('click', (e) => {
+    const wrap = document.querySelector('.topbar-search');
+    if (wrap && !wrap.contains(e.target)) {
+      document.getElementById('globalSearchResults').style.display = 'none';
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') document.getElementById('globalSearchResults').style.display = 'none';
+  });
 
   // ── CONFIRM ACTION HELPER ─────────────────────────────────────
   function confirmAction(title, text, btnClass, btnLabel, onOk) {
@@ -2816,6 +3036,8 @@
   window.logAdminAction       = logAdminAction;
   window.adminCancelAppt      = adminCancelAppt;
   window.handleGlobalSearch   = handleGlobalSearch;
+  window.globalSearchGoTo     = globalSearchGoTo;
+  window.setActivityFeedMode  = setActivityFeedMode;
   window.refreshAll           = refreshAll;
   window.adminLogout          = adminLogout;
   window.closeModal           = closeModal;

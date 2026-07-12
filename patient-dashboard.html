@@ -675,14 +675,12 @@ async function submitReview() {
         doctor_name: (prescription.doctor_name || 'Médecin').trim()
       };
 
-      console.log('📋 Sending to PDF Server:', prescriptionData);
-
       // Send to Python server
       const response = await fetch('https://mednex-pdf-server.onrender.com/generate-pdf', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'X-PDF-Secret': 'DF7N1MUNkCwAvB24uITwJjWn4h7yqfHBYLSpX3x-mL4'
+    'X-PDF-Secret': 'mednex-pdf-secret-2024-xK9#mP2$'
   },
   body: JSON.stringify(prescriptionData)
 });
