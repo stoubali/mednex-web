@@ -1498,7 +1498,25 @@
     
     // IDs used by the Edge Function to verify this doctor actually owns
     // the appointment/patient in question before it will generate a PDF.
-    const idSource = mode === 'edit' ? editingPatientData : currentPrescriptionPatient;
+    // For 'new' mode, currentPrescriptionPatient (today's appointment row)
+    // reliably has patient_id. For 'edit' mode, editingPatientData only
+    // gets populated if that appointment happens to be in the CURRENTLY
+    // VIEWED date on the patients table — which won't be true if you're
+    // editing a prescription from a different day. Fall back to the
+    // prescription record itself (always has these IDs) in that case.
+    let idSource;
+    if (mode === 'edit') {
+      if (editingPatientData?.patient_id) {
+        idSource = editingPatientData;
+      } else {
+        const matchingRx = prescriptions.find(rx =>
+          `${rx.appointment_id || rx.patient_id}_${rx.prescribed_at}` === editingPrescriptionKey
+        );
+        idSource = matchingRx ? { patient_id: matchingRx.patient_id, id: matchingRx.appointment_id } : null;
+      }
+    } else {
+      idSource = currentPrescriptionPatient;
+    }
 
     const prescriptionData = {
       doctor_id: doctorId,
