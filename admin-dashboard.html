@@ -2493,7 +2493,6 @@
     apptsState.search = document.getElementById('apptSearch')?.value.trim() || '';
     apptsState.status = document.getElementById('apptStatusFilter')?.value || '';
     filterApptsDebounced();
-    renderApptsTable(data);
   }
 
   async function adminCancelAppt(id) {
