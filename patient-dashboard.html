@@ -570,6 +570,9 @@ async function submitReview() {
     const key = `${rx.appointment_id || rx.doctor_id}_${rx.prescribed_at}`;
     if (!grouped[key]) {
       grouped[key] = {
+        doctor_id: rx.doctor_id,
+        patient_id: rx.patient_id,
+        appointment_id: rx.appointment_id,
         doctor_name: rx.doctors?.full_name || '–',
         doctor_specialty: rx.doctors?.specialty || '–',
         prescribed_at: rx.prescribed_at,
@@ -665,6 +668,9 @@ async function submitReview() {
 
       // Prepare prescription data with all available info
       const prescriptionData = {
+        doctor_id: prescription.doctor_id || null,
+        patient_id: prescription.patient_id || patientId,
+        appointment_id: prescription.appointment_id || null,
         patient_name: patientName.trim(),
         age_gender: '–',
         date: (prescription.prescribed_at || new Date().toISOString().split('T')[0]).trim(),
@@ -675,15 +681,21 @@ async function submitReview() {
         doctor_name: (prescription.doctor_name || 'Médecin').trim()
       };
 
-      // Send to Python server
-      const response = await fetch('https://mednex-pdf-server.onrender.com/generate-pdf', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-PDF-Secret': 'DF7N1MUNkCwAvB24uITwJjWn4h7yqfHBYLSpX3x-mL4'
-  },
-  body: JSON.stringify(prescriptionData)
-});
+      // Send through the generate-pdf-proxy Edge Function — verifies our
+      // session and that this prescription belongs to us before forwarding
+      // to the PDF server with a secret that never reaches the browser.
+      const { data: { session: pdfSession } } = await sb.auth.getSession();
+      if (!pdfSession) { window.location.href = 'patient-login.html'; return; }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-pdf-proxy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${pdfSession.access_token}`,
+          'apikey': SUPABASE_KEY
+        },
+        body: JSON.stringify(prescriptionData)
+      });
 
       if (!response.ok) {
         const errorData = await response.json();

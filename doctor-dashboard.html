@@ -1396,15 +1396,21 @@
         return;
       }
 
-      // Send to Python serverL
-      const response = await fetch('https://mednex-pdf-server.onrender.com/generate-pdf', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-PDF-Secret': 'DF7N1MUNkCwAvB24uITwJjWn4h7yqfHBYLSpX3x-mL4'
-  },
-  body: JSON.stringify(prescriptionData)
-});
+      // Send through the generate-pdf-proxy Edge Function — it verifies
+      // our session and that we own this prescription before forwarding
+      // to the PDF server with a secret that never reaches the browser.
+      const { data: { session: pdfSession } } = await sb.auth.getSession();
+      if (!pdfSession) { window.location.href = 'doctor-login.html'; return; }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-pdf-proxy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${pdfSession.access_token}`,
+          'apikey': SUPABASE_KEY
+        },
+        body: JSON.stringify(prescriptionData)
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -1490,7 +1496,14 @@
     const clinicalField = $(prefix ? 'editPrescClinical' : 'prescClinical');
     const recommendationsField = $(prefix ? 'editPrescRecommendations' : 'prescRecommendations');
     
+    // IDs used by the Edge Function to verify this doctor actually owns
+    // the appointment/patient in question before it will generate a PDF.
+    const idSource = mode === 'edit' ? editingPatientData : currentPrescriptionPatient;
+
     const prescriptionData = {
+      doctor_id: doctorId,
+      patient_id: idSource?.patient_id || null,
+      appointment_id: idSource?.id || null,
       patient_name: patientName.trim(),
       age_gender: `${patientAge.trim()} / ${patientGender.trim()}`,
       date: (dateField && dateField.value) ? dateField.value : new Date().toISOString().split('T')[0],

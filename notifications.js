@@ -13,9 +13,12 @@
   const SUPABASE_URL = "https://xisdwbyermvbqjuqjagn.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc2R3Ynllcm12YnFqdXFqYWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzUyOTksImV4cCI6MjA5ODExMTI5OX0.Ixz6hlLsOUkH04uNivcH81P4-MWeIc_pJZTwnAfm57I";
 
-  // ⚠️ Update this once the push server is deployed
+  // vapid-public-key is not sensitive (it's a public key) so it's still
+  // fetched directly from the push server. Registering a subscription is
+  // sensitive (ties a device to a specific patient/doctor/admin), so that
+  // now goes through a Supabase Edge Function instead of a shared secret.
   const PUSH_SERVER = "https://push-service-szey.onrender.com";
-  const PDF_SECRET  = "DF7N1MUNkCwAvB24uITwJjWn4h7yqfHBYLSpX3x-mL4";
+  const REGISTER_PUSH_ENDPOINT = `${SUPABASE_URL}/functions/v1/register-push-proxy`;
 
   if (typeof supabase === "undefined") {
     console.error("[notifications] Supabase SDK not loaded before this script.");
@@ -255,10 +258,17 @@
         });
       }
 
-      await fetch(`${PUSH_SERVER}/register-push`, {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return; // not logged in — nothing to register
+
+      await fetch(REGISTER_PUSH_ENDPOINT, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-PDF-Secret": PDF_SECRET },
-        body: JSON.stringify({ recipient_type: recipientType, recipient_id: recipientId, subscription: sub.toJSON() }),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+          "apikey": SUPABASE_KEY,
+        },
+        body: JSON.stringify({ subscription: sub.toJSON() }),
       });
     } catch (e) {
       console.warn("[notifications] push setup skipped:", e.message);
