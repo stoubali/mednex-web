@@ -105,46 +105,34 @@ form.addEventListener("submit", async (e) => {
   submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Création…';
 
   try {
-    // 1. Create auth user (password is hashed by Supabase — never stored in plain text)
-    const { data: authData, error: authError } = await sb.auth.signUp({
-  email: d.email,
-  password: d.password,
-  options: {
-    emailRedirectTo: null,          // no confirmation email
-    data: { role: "doctor", full_name: d.full_name }
-  }
-});
-
-    if (authError) {
-      if (authError.message.includes("already registered")) {
-        showError("Cet email est déjà utilisé. Veuillez vous connecter.");
-      } else {
-        showError("Erreur: " + authError.message);
+    // The Edge Function owns the entire registration: creates the Auth
+    // user, creates the doctor profile row, and rolls back cleanly if
+    // anything fails partway through — none of that can be done safely
+    // from the browser (see register-doctor/index.ts for why).
+    const { data, error } = await sb.functions.invoke('register-doctor', {
+      body: {
+        full_name: d.full_name,
+        email: d.email,
+        phone: d.phone || null,
+        specialty: d.specialty.trim(),
+        license_number: d.license_number.trim(),
+        city: d.city?.trim() || null,
+        clinic_address: d.clinic_address?.trim() || null,
+        description: d.description?.trim() || null,
+        password: d.password
       }
+    });
+
+    if (error) {
+      // Network-level failure (function unreachable, non-2xx with no
+      // parseable body, etc.) — data.error/message won't be available.
+      showError("Erreur de connexion. Veuillez réessayer.");
       return;
     }
 
-    const authUserId = authData.user.id;
-
-    // 2. Insert doctor profile linked to auth user (NO password stored here)
-    const { error: insertError } = await sb.from("doctors").insert([{
-      auth_user_id:   authUserId,
-      full_name:      d.full_name,
-      email:          d.email,
-      phone:          d.phone || null,
-      specialty:      d.specialty.trim(),
-      license_number: d.license_number.trim(),
-      city:           d.city?.trim() || null,
-      clinic_address: d.clinic_address?.trim() || null,
-      description:    d.description?.trim() || null,
-      status:         "pending"
-      // ⚠️  NO password field — auth is handled by Supabase Auth
-    }]);
-
-    if (insertError) {
-      // Rollback: remove the auth user we just created
-      await sb.auth.admin?.deleteUser(authUserId).catch(() => {});
-      showError("Erreur lors de l'inscription: " + insertError.message);
+    if (data?.error) {
+      // Structured, friendly error from the Edge Function itself.
+      showError(data.message || "Une erreur est survenue.");
       return;
     }
 
