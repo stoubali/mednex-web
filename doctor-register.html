@@ -124,9 +124,18 @@ form.addEventListener("submit", async (e) => {
     });
 
     if (error) {
-      // Network-level failure (function unreachable, non-2xx with no
-      // parseable body, etc.) — data.error/message won't be available.
-      showError("Erreur de connexion. Veuillez réessayer.");
+      // supabase-js treats any non-2xx response from the function as
+      // `error`, not `data` — the friendly message we sent (e.g. "Cet
+      // email est déjà utilisé") is still in the response body, just
+      // needs to be read from error.context rather than data.
+      let friendlyMessage = "Erreur de connexion. Veuillez réessayer.";
+      try {
+        const ctx = await error.context?.json?.();
+        if (ctx?.message) friendlyMessage = ctx.message;
+      } catch (_) {
+        // context wasn't valid JSON (e.g. function genuinely unreachable) — keep the generic message
+      }
+      showError(friendlyMessage);
       return;
     }
 
