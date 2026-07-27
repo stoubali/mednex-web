@@ -132,38 +132,40 @@ form.addEventListener("submit", async (e) => {
   submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Création…';
 
   try {
-    // 1. Create auth user (password hashed by Supabase — never plain text)
-    const { data: authData, error: authError } = await sb.auth.signUp({
-  email: d.email,
-  password: d.password,
-  options: {
-    emailRedirectTo: null,
-    data: { role: "patient", full_name: d.full_name }
-  }
-});
+    // The Edge Function owns the entire registration: creates the Auth
+    // user, creates the patient profile row, and rolls back cleanly if
+    // anything fails partway through. This also fixes a bug where the
+    // old two-step client-side flow silently depended on signUp()
+    // returning an active session immediately — which stopped being
+    // true once email confirmation was required.
+    const { data, error } = await sb.functions.invoke('register-patient', {
+      body: {
+        full_name: d.full_name,
+        email: d.email,
+        phone: d.phone,
+        birth_date: d.birth_date,
+        gender: d.gender,
+        password: d.password
+      }
+    });
 
-    if (authError) {
-      showError(authError.message.includes("already registered")
-        ? "Cet email est déjà utilisé. Veuillez vous connecter."
-        : "Erreur: " + authError.message);
+    if (error) {
+      // supabase-js treats any non-2xx response as `error`, not `data` —
+      // the friendly message is still in the response body, just needs
+      // to be read from error.context rather than data.
+      let friendlyMessage = "Erreur de connexion. Veuillez réessayer.";
+      try {
+        const ctx = await error.context?.json?.();
+        if (ctx?.message) friendlyMessage = ctx.message;
+      } catch (_) {
+        // context wasn't valid JSON — keep the generic message
+      }
+      showError(friendlyMessage);
       return;
     }
 
-    const authUserId = authData.user.id;
-
-    // 2. Insert patient profile linked to auth user (NO password stored)
-    const { error: insertError } = await sb.from("patients").insert([{
-      auth_user_id: authUserId,
-      full_name:    d.full_name,
-      email:        d.email,
-      phone:        d.phone,
-      birth_date:   d.birth_date,
-      gender:       d.gender
-      // ⚠️  NO password field
-    }]);
-
-    if (insertError) {
-      showError("Erreur lors de l'inscription: " + insertError.message);
+    if (data?.error) {
+      showError(data.message || "Une erreur est survenue.");
       return;
     }
 
