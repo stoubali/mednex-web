@@ -157,8 +157,9 @@ form.addEventListener("submit", async (e) => {
       try {
         const ctx = await error.context?.json?.();
         if (ctx?.message) friendlyMessage = ctx.message;
+        console.error('[patient-register] register-patient error:', ctx || error.message);
       } catch (_) {
-        // context wasn't valid JSON — keep the generic message
+        console.error('[patient-register] register-patient error (unparsed):', error.message);
       }
       showError(friendlyMessage);
       return;

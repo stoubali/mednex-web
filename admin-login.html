@@ -496,6 +496,9 @@ form.addEventListener('submit', async (e) => {
   });
 
   let isAdmin = false;
+  if (authError) {
+    console.error('[admin-login] signInWithPassword error:', authError.message);
+  }
   if (!authError && authData?.user) {
     // 2. Confirm this auth user is actually listed as an admin
     const { data: admin } = await sb

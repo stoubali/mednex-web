@@ -148,7 +148,13 @@ async function loginPatient() {
     const { data: authData, error: authError } = await sb.auth.signInWithPassword({ email, password });
 
 if (authError) {
-  showError("Email ou mot de passe incorrect");
+  console.error('[patient-login] signInWithPassword error:', authError.message);
+  const msg = (authError.message || '').toLowerCase();
+  if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
+    showError("Veuillez confirmer votre adresse email avant de vous connecter. Vérifiez votre boîte mail (et vos spams).");
+  } else {
+    showError("Email ou mot de passe incorrect");
+  }
   return;
 }
 
