@@ -281,6 +281,20 @@
       </div>
     </div>
 
+    <!-- New Section: Recent Medical Records -->
+    <div class="glass" style="padding:24px;margin-bottom:32px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+        <h4 style="font-weight:600;color:#0B1E18;"><i class="fas fa-file-medical" style="color:var(--primary);"></i> Dossiers Médicaux Récents</h4>
+        <span class="text-muted" id="recordCount">0</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Patient</th><th>Date</th><th>Motif de visite</th><th>Diagnostic</th><th>Statut</th></tr></thead>
+          <tbody id="medicalRecordTableBody"><tr class="loading-row"><td colspan="5"><i class="fas fa-file-medical"></i> Aucun dossier médical</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="glass" style="padding:24px;margin-bottom:32px;">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
         <h4 style="font-weight:600;color:#0B1E18;"><i class="fas fa-clock" style="color:var(--primary);"></i> Gestion des Disponibilités</h4>
@@ -490,6 +504,51 @@
       </div>
     </div>
 
+    <!-- Medical Record Modal -->
+    <div class="modal-overlay" id="medicalRecordModal">
+      <div class="modal-box" style="max-width:560px;">
+        <h3><i class="fas fa-file-medical" style="color:var(--primary);"></i> Nouveau Dossier Médical</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+          <div><span class="text-muted" style="font-size:0.7rem;">Patient</span><div id="mrPatientName" style="font-weight:600;">—</div></div>
+          <div><span class="text-muted" style="font-size:0.7rem;">Date RDV</span><div id="mrPatientApptDate" style="font-weight:600;">—</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div><label style="font-weight:500;font-size:0.85rem;">Date du dossier</label><input type="date" id="mrRecordDate" style="width:100%;padding:10px;border-radius:60px;border:1px solid var(--border);font-family:inherit;margin-top:4px;" /></div>
+          <div><label style="font-weight:500;font-size:0.85rem;">Motif de la visite <span style="color:var(--danger);">*</span></label><input type="text" id="mrVisitReason" placeholder="ex: Contrôle tension artérielle" style="width:100%;padding:10px 14px;border-radius:60px;border:1px solid var(--border);font-family:inherit;margin-top:4px;" /></div>
+          <div><label style="font-weight:500;font-size:0.85rem;">Diagnostic <span style="color:var(--danger);">*</span></label><input type="text" id="mrDiagnosis" placeholder="Diagnostic principal" style="width:100%;padding:10px 14px;border-radius:60px;border:1px solid var(--border);font-family:inherit;margin-top:4px;" /></div>
+          <div><label style="font-weight:500;font-size:0.85rem;">Notes cliniques</label><textarea id="mrClinicalNotes" placeholder="Symptômes, examen clinique, observations…" style="width:100%;min-height:80px;padding:10px 14px;border-radius:16px;border:1px solid var(--border);font-family:inherit;margin-top:4px;resize:vertical;"></textarea></div>
+          <div><label style="font-weight:500;font-size:0.85rem;">Plan de traitement</label><textarea id="mrTreatmentPlan" placeholder="Orientation, suivi, recommandations…" style="width:100%;min-height:80px;padding:10px 14px;border-radius:16px;border:1px solid var(--border);font-family:inherit;margin-top:4px;resize:vertical;"></textarea></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-outline" onclick="closeModal('medicalRecordModal')">Annuler</button>
+          <button class="btn-outline" onclick="saveMedicalRecord('draft')"><i class="fas fa-save"></i> Enregistrer comme brouillon</button>
+          <button class="btn-primary" onclick="saveMedicalRecord('completed')"><i class="fas fa-check-circle"></i> Finaliser</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Medical Record Modal -->
+    <div class="modal-overlay" id="editMedicalRecordModal">
+      <div class="modal-box" style="max-width:560px;">
+        <h3><i class="fas fa-edit" style="color:var(--primary);"></i> Modifier le Dossier Médical</h3>
+        <input type="hidden" id="editMrRecordId" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+          <div><span class="text-muted" style="font-size:0.7rem;">Patient</span><div id="editMrPatientName" style="font-weight:600;">—</div></div>
+          <div><span class="text-muted" style="font-size:0.7rem;">Statut actuel</span><div id="editMrCurrentStatus" style="font-weight:600;">—</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div><label style="font-weight:500;font-size:0.85rem;">Date du dossier</label><input type="date" id="editMrRecordDate" style="width:100%;padding:10px;border-radius:60px;border:1px solid var(--border);font-family:inherit;margin-top:4px;" /></div>
+          <div><label style="font-weight:500;font-size:0.85rem;">Motif de la visite <span style="color:var(--danger);">*</span></label><input type="text" id="editMrVisitReason" style="width:100%;padding:10px 14px;border-radius:60px;border:1px solid var(--border);font-family:inherit;margin-top:4px;" /></div>
+          <div><label style="font-weight:500;font-size:0.85rem;">Diagnostic <span style="color:var(--danger);">*</span></label><input type="text" id="editMrDiagnosis" style="width:100%;padding:10px 14px;border-radius:60px;border:1px solid var(--border);font-family:inherit;margin-top:4px;" /></div>
+          <div><label style="font-weight:500;font-size:0.85rem;">Notes cliniques</label><textarea id="editMrClinicalNotes" style="width:100%;min-height:80px;padding:10px 14px;border-radius:16px;border:1px solid var(--border);font-family:inherit;margin-top:4px;resize:vertical;"></textarea></div>
+          <div><label style="font-weight:500;font-size:0.85rem;">Plan de traitement</label><textarea id="editMrTreatmentPlan" style="width:100%;min-height:80px;padding:10px 14px;border-radius:16px;border:1px solid var(--border);font-family:inherit;margin-top:4px;resize:vertical;"></textarea></div>
+        </div>
+        <div class="modal-actions" id="editMrActions">
+          <!-- populated dynamically in openEditMedicalRecordModal() based on current status -->
+        </div>
+      </div>
+    </div>
+
     <div class="toast-container" id="toastContainer"></div>
   </div>
 
@@ -555,6 +614,11 @@
   let currentPrescriptionPatient = null;
   // Prescriptions loaded from Supabase
   let prescriptions = [];
+  // Medical record state
+  let currentMedicalRecordPatient = null;
+  let editingMedicalRecordId = null;
+  // Medical records loaded from Supabase
+  let medicalRecords = [];
 
   // ── Clock & date ──────────────────────────────────────────────
   function updateClock() {
@@ -736,6 +800,7 @@
           ${p.status==='pending'?`<button class="btn-icon" onclick="confirmAppt('${esc(p.id)}')" title="Confirmer"><i class="fas fa-check" style="color:var(--success)"></i></button>`:''}
           ${p.status!=='cancelled'?`<button class="btn-icon danger" onclick="cancelAppt('${esc(p.id)}')" title="Annuler"><i class="fas fa-times"></i></button>`:''}
           <button class="btn-icon" onclick="openPrescriptionModal('${esc(p.id)}')" title="Créer une ordonnance"><i class="fas fa-prescription" style="color:var(--primary);"></i></button>
+          <button class="btn-icon" onclick="openMedicalRecordModal('${esc(p.id)}')" title="Créer un dossier médical"><i class="fas fa-file-medical" style="color:var(--primary);"></i></button>
         </td>
       </tr>`).join('');
   }
@@ -1046,6 +1111,175 @@
   // Keep backward-compat alias used in refreshAll
   function updatePrescriptionTable() {
     return loadRecentPrescriptions();
+  }
+
+  // ── Medical Records ──────────────────────────────────────────
+  function openMedicalRecordModal(apptId) {
+    const appt = allAppointments.find(a => a.id === apptId);
+    if (!appt) return;
+    currentMedicalRecordPatient = appt;
+
+    $('mrPatientName').textContent = appt.patient_name;
+    $('mrPatientApptDate').textContent = appt.date + ' ' + (appt.start_time?.slice(0,5) || '');
+    $('mrRecordDate').value = new Date().toISOString().split('T')[0];
+    $('mrVisitReason').value = '';
+    $('mrDiagnosis').value = '';
+    $('mrClinicalNotes').value = '';
+    $('mrTreatmentPlan').value = '';
+
+    $('medicalRecordModal').classList.add('active');
+  }
+
+  async function saveMedicalRecord(status) {
+    const p = currentMedicalRecordPatient;
+    if (!p) return;
+
+    const visit_reason = $('mrVisitReason').value.trim();
+    const diagnosis = $('mrDiagnosis').value.trim();
+
+    if (!visit_reason) { showToast('error', 'Le motif de la visite est requis'); return; }
+    if (!diagnosis) { showToast('error', 'Le diagnostic est requis'); return; }
+
+    // Refresh session token so RLS sees auth.uid() correctly (same
+    // pattern already used before every other write in this file)
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'doctor-login.html'; return; }
+    await sb.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+
+    const record_date = $('mrRecordDate').value || new Date().toISOString().split('T')[0];
+    const clinical_notes = $('mrClinicalNotes').value.trim() || null;
+    const treatment_plan = $('mrTreatmentPlan').value.trim() || null;
+
+    // Plain RLS-gated insert — no Edge Function needed, this is a
+    // single-table write the "Doctors can create records attributed
+    // to themselves" policy already covers.
+    const { error } = await sb.from('medical_records').insert([{
+      patient_id: p.patient_id,
+      doctor_id: doctorId,
+      appointment_id: p.id,
+      record_date,
+      visit_reason,
+      diagnosis,
+      clinical_notes,
+      treatment_plan,
+      status
+    }]);
+
+    if (error) { showToast('error', error.message); return; }
+
+    showToast('success', status === 'draft' ? 'Dossier enregistré comme brouillon' : 'Dossier médical finalisé');
+    closeModal('medicalRecordModal');
+    await loadRecentMedicalRecords();
+  }
+
+  async function loadRecentMedicalRecords() {
+    const { data, error } = await sb
+      .from('medical_records')
+      .select('*, patients(full_name)')
+      .eq('doctor_id', doctorId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      $('medicalRecordTableBody').innerHTML = `<tr class="loading-row"><td colspan="5">Erreur: ${esc(error.message)}</td></tr>`;
+      return;
+    }
+
+    medicalRecords = data || [];
+    $('recordCount').textContent = `Total: ${medicalRecords.length}`;
+
+    if (!medicalRecords.length) {
+      $('medicalRecordTableBody').innerHTML = '<tr class="loading-row"><td colspan="5"><i class="fas fa-file-medical"></i> Aucun dossier médical</td></tr>';
+      return;
+    }
+
+    const statusBadgeClass = { draft: 'badge-draft', completed: 'badge-generated', amended: 'badge-info' };
+    const statusLabel = { draft: 'brouillon', completed: 'complété', amended: 'modifié' };
+
+    $('medicalRecordTableBody').innerHTML = medicalRecords.map(r => `
+      <tr style="cursor:pointer;" onclick="openEditMedicalRecordModal('${esc(r.id)}')">
+        <td><strong>${esc(r.patients?.full_name || '–')}</strong></td>
+        <td>${esc(r.record_date)}</td>
+        <td>${esc(r.visit_reason || '—')}</td>
+        <td>${esc(r.diagnosis ? (r.diagnosis.slice(0,35) + (r.diagnosis.length > 35 ? '…' : '')) : '—')}</td>
+        <td><span class="badge ${statusBadgeClass[r.status] || 'badge'}">${esc(statusLabel[r.status] || r.status)}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  function openEditMedicalRecordModal(recordId) {
+    const record = medicalRecords.find(r => r.id === recordId);
+    if (!record) return;
+
+    editingMedicalRecordId = recordId;
+
+    $('editMrRecordId').value = recordId;
+    $('editMrPatientName').textContent = record.patients?.full_name || '–';
+    $('editMrCurrentStatus').textContent =
+      record.status === 'draft' ? 'Brouillon' : record.status === 'completed' ? 'Complété' : 'Modifié';
+    $('editMrRecordDate').value = record.record_date || '';
+    $('editMrVisitReason').value = record.visit_reason || '';
+    $('editMrDiagnosis').value = record.diagnosis || '';
+    $('editMrClinicalNotes').value = record.clinical_notes || '';
+    $('editMrTreatmentPlan').value = record.treatment_plan || '';
+
+    // Draft records can still be saved as draft or finalized. Records
+    // already completed/amended only get a single "save changes" action
+    // that marks them as amended — matches the approved design's
+    // traceability requirement: a finalized record that's edited again
+    // should visibly show it was changed after completion. The database
+    // trigger (trg_medical_records_history) captures the prior version
+    // automatically regardless of which button is used here.
+    const actions = $('editMrActions');
+    if (record.status === 'draft') {
+      actions.innerHTML = `
+        <button class="btn-outline" onclick="closeModal('editMedicalRecordModal')">Annuler</button>
+        <button class="btn-outline" onclick="updateMedicalRecord('draft')"><i class="fas fa-save"></i> Enregistrer comme brouillon</button>
+        <button class="btn-primary" onclick="updateMedicalRecord('completed')"><i class="fas fa-check-circle"></i> Finaliser</button>`;
+    } else {
+      actions.innerHTML = `
+        <button class="btn-outline" onclick="closeModal('editMedicalRecordModal')">Annuler</button>
+        <button class="btn-primary" onclick="updateMedicalRecord('amended')"><i class="fas fa-save"></i> Enregistrer les modifications</button>`;
+    }
+
+    $('editMedicalRecordModal').classList.add('active');
+  }
+
+  async function updateMedicalRecord(newStatus) {
+    const recordId = editingMedicalRecordId;
+    if (!recordId) return;
+
+    const visit_reason = $('editMrVisitReason').value.trim();
+    const diagnosis = $('editMrDiagnosis').value.trim();
+
+    if (!visit_reason) { showToast('error', 'Le motif de la visite est requis'); return; }
+    if (!diagnosis) { showToast('error', 'Le diagnostic est requis'); return; }
+
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'doctor-login.html'; return; }
+    await sb.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+
+    const record_date = $('editMrRecordDate').value || new Date().toISOString().split('T')[0];
+    const clinical_notes = $('editMrClinicalNotes').value.trim() || null;
+    const treatment_plan = $('editMrTreatmentPlan').value.trim() || null;
+
+    // Plain RLS-gated update — the "Doctors can update their own
+    // authored records" policy scopes this to records this doctor
+    // owns; the history trigger fires automatically on this UPDATE.
+    const { error } = await sb.from('medical_records').update({
+      record_date,
+      visit_reason,
+      diagnosis,
+      clinical_notes,
+      treatment_plan,
+      status: newStatus
+    }).eq('id', recordId);
+
+    if (error) { showToast('error', error.message); return; }
+
+    showToast('success', 'Dossier médical mis à jour');
+    closeModal('editMedicalRecordModal');
+    await loadRecentMedicalRecords();
   }
 
   // ── Availability table ────────────────────────────────────────
@@ -1592,7 +1826,9 @@
       loadAvailabilities(),
       loadKPIs(),
       // Prescription table update
-      updatePrescriptionTable()
+      updatePrescriptionTable(),
+      // Medical records table update
+      loadRecentMedicalRecords()
     ]);
   }
 
@@ -1628,6 +1864,11 @@
   window.closeModal             = closeModal;
   window.logout                 = logout;
   window.openPrescriptionModal  = openPrescriptionModal;
+  window.openMedicalRecordModal = openMedicalRecordModal;
+  window.saveMedicalRecord      = saveMedicalRecord;
+  window.loadRecentMedicalRecords = loadRecentMedicalRecords;
+  window.openEditMedicalRecordModal = openEditMedicalRecordModal;
+  window.updateMedicalRecord    = updateMedicalRecord;
   window.addMedication          = addMedication;
   window.removeMedication       = removeMedication;
   window.saveDraft              = saveDraft;
