@@ -218,7 +218,7 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Médecin</th><th>Spécialité</th><th>Diagnostic</th><th>Statut</th></tr></thead>
+          <thead><tr><th>Date</th><th>Motif</th><th>Médecin</th><th>Spécialité</th><th>Statut</th></tr></thead>
           <tbody id="recordsTableBody"><tr><td colspan="5" style="text-align:center;padding:20px;color:#5A6F66;"><i class="fas fa-spinner fa-spin"></i> Chargement…</td></tr></tbody>
         </table>
       </div>
@@ -263,6 +263,16 @@
     </div>
   </div>
 </div>
+    <!-- Modal: Medical Record Details (read-only — no edit/delete anywhere here) -->
+    <div class="modal-overlay" id="recordModal">
+      <div class="modal-box">
+        <h3><i class="fas fa-folder-medical" style="color:var(--primary);"></i> Détails du Dossier Médical</h3>
+        <div id="recordModalContent"></div>
+        <div class="modal-actions">
+          <button class="btn-outline" onclick="closeModal('recordModal')">Fermer</button>
+        </div>
+      </div>
+    </div>
     <div class="toast-container" id="toastContainer"></div>
   </div>
 
@@ -313,6 +323,7 @@
   let selectedDoctorAvailId = null;
   let selectedSlot = null;
   let upcomingAppointments = [];
+  let medicalRecordsData = [];
 
   // ── Toast ─────────────────────────────────────────────────────
   function showToast(type, message) {
@@ -535,23 +546,62 @@ async function submitReview() {
   }
 
   // ── Medical records ───────────────────────────────────────────
+  const RECORD_STATUS_LABEL = { draft: 'Brouillon', completed: 'Complété', amended: 'Modifié' };
+  const RECORD_STATUS_BADGE = { draft: 'badge-warning', completed: 'badge-success', amended: 'badge-info' };
+
   async function loadRecords() {
-    const { data } = await sb.from('medical_records').select('*,doctors(full_name,specialty)').eq('patient_id', patientId).order('record_date', {ascending:false});
+    // doctors(full_name,specialty) is a live join — specialty is read
+    // from the doctor's current profile, not a point-in-time snapshot
+    // (the medical_records.specialty column was intentionally removed).
+    const { data, error } = await sb
+      .from('medical_records')
+      .select('*, doctors(full_name, specialty)')
+      .eq('patient_id', patientId)
+      .order('record_date', { ascending: false });
 
-    animateCount($('kpiRecords'), data?.length || 0);
+    if (error) {
+      $('recordsTableBody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:#EF4444;">Erreur: ${esc(error.message)}</td></tr>`;
+      return;
+    }
 
-    if (!data?.length) {
+    medicalRecordsData = data || [];
+    animateCount($('kpiRecords'), medicalRecordsData.length);
+
+    if (!medicalRecordsData.length) {
       $('recordsTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#5A6F66;">Aucun dossier médical</td></tr>';
       return;
     }
-    $('recordsTableBody').innerHTML = data.map(r => `
-      <tr>
+
+    $('recordsTableBody').innerHTML = medicalRecordsData.map(r => `
+      <tr style="cursor:pointer;" onclick="openRecordDetailModal('${esc(r.id)}')">
         <td>${esc(r.record_date)}</td>
-        <td><strong>${esc(r.doctors?.full_name||'–')}</strong></td>
-        <td>${esc(r.doctors?.specialty||r.specialty||'–')}</td>
-        <td>${esc(r.diagnosis)}</td>
-        <td><span class="badge badge-success">${esc(r.status)}</span></td>
+        <td>${esc(r.visit_reason || '–')}</td>
+        <td><strong>${esc(r.doctors?.full_name ? 'Dr. ' + r.doctors.full_name : '–')}</strong></td>
+        <td>${esc(r.doctors?.specialty || '–')}</td>
+        <td><span class="badge ${RECORD_STATUS_BADGE[r.status] || 'badge'}">${esc(RECORD_STATUS_LABEL[r.status] || r.status)}</span></td>
       </tr>`).join('');
+  }
+
+  // Read-only detail view — no edit/delete anywhere in this modal, by
+  // design. Looks up from the already-loaded medicalRecordsData rather
+  // than re-querying, since loadRecords() already has everything needed.
+  function openRecordDetailModal(recordId) {
+    const r = medicalRecordsData.find(x => x.id === recordId);
+    if (!r) return;
+
+    $('recordModalContent').innerHTML = `
+      <div class="modal-row"><span>Motif de la visite</span><strong>${esc(r.visit_reason || '–')}</strong></div>
+      <div class="modal-row"><span>Diagnostic</span><span>${esc(r.diagnosis || '–')}</span></div>
+      <div class="modal-row"><span>Médecin</span><span>${esc(r.doctors?.full_name ? 'Dr. ' + r.doctors.full_name : '–')}</span></div>
+      <div class="modal-row"><span>Spécialité</span><span>${esc(r.doctors?.specialty || '–')}</span></div>
+      <div class="modal-row"><span>Date de la visite</span><span>${esc(r.record_date)}</span></div>
+      <div class="modal-row"><span>Statut</span><span class="badge ${RECORD_STATUS_BADGE[r.status] || 'badge'}">${esc(RECORD_STATUS_LABEL[r.status] || r.status)}</span></div>
+      <div class="modal-row"><span>Dernière mise à jour</span><span>${r.updated_at ? esc(new Date(r.updated_at).toLocaleString('fr-FR')) : '–'}</span></div>
+      ${r.clinical_notes ? `<div class="modal-row" style="flex-direction:column;align-items:flex-start;gap:4px;"><span>Notes cliniques</span><span style="font-weight:400;line-height:1.5;">${esc(r.clinical_notes)}</span></div>` : ''}
+      ${r.treatment_plan ? `<div class="modal-row" style="flex-direction:column;align-items:flex-start;gap:4px;"><span>Plan de traitement</span><span style="font-weight:400;line-height:1.5;">${esc(r.treatment_plan)}</span></div>` : ''}
+    `;
+
+    $('recordModal').classList.add('active');
   }
 
   // ── Prescriptions ─────────────────────────────────────────────
@@ -912,6 +962,7 @@ async function submitReview() {
   window.downloadPrescriptionPDF = downloadPrescriptionPDF;
   window.openReviewModal = openReviewModal;
   window.submitReview    = submitReview;
+  window.openRecordDetailModal = openRecordDetailModal;
 
   } // end bootApp()
   </script>
