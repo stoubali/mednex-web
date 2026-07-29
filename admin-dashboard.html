@@ -664,7 +664,7 @@
   <!-- ── SIDEBAR ──────────────────────────────────────────── -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <img src="/logo_navbar_admin.png" alt="MedNex"
+      <img src="/logo_navbar.png" alt="MedNex"
         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
       <div style="display:none;align-items:center;gap:6px;">
         <div style="width:32px;height:32px;background:rgba(255,255,255,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;">
@@ -687,6 +687,11 @@
         <div class="nav-icon"><i class="fas fa-user-check"></i></div>
         Approbations Médecins
         <span class="nav-badge" id="pendingBadgeNav">–</span>
+      </button>
+      <button class="nav-item" onclick="showView('contactmessages', this)" id="navContactMessages">
+        <div class="nav-icon"><i class="fas fa-envelope"></i></div>
+        Messages de contact
+        <span class="nav-badge" id="contactBadgeNav">–</span>
       </button>
       <button class="nav-item" onclick="showView('users', this)">
         <div class="nav-icon"><i class="fas fa-users"></i></div>
@@ -941,6 +946,38 @@
       </div>
 
       <!-- ═══════════════════════════════════════════ -->
+      <!-- VIEW: CONTACT MESSAGES                      -->
+      <!-- ═══════════════════════════════════════════ -->
+      <div class="view" id="view-contactmessages">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+          <div class="filter-bar" style="flex:1;">
+            <input class="filter-input" type="text" placeholder="Nom, email, sujet…" id="contactSearch" oninput="filterContactMessages()" style="min-width:200px;" />
+            <select class="filter-input" id="contactStatusFilter" onchange="filterContactMessages()">
+              <option value="">Tous les statuts</option>
+              <option value="new">Nouveaux</option>
+              <option value="read">Lus</option>
+              <option value="archived">Archivés</option>
+            </select>
+          </div>
+          <span class="badge badge-neutral" id="contactCountLabel">–</span>
+          <button class="btn btn-outline btn-sm" onclick="exportContactMessagesCSV()"><i class="fas fa-file-export"></i> CSV</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Nom</th><th>Email</th><th>Type</th><th>Sujet</th><th>Statut</th><th>Date</th></tr>
+              </thead>
+              <tbody id="contactMessagesTableBody">
+                <tr><td colspan="6" style="text-align:center;padding:30px;color:#8A9E96;"><i class="fas fa-spinner fa-spin"></i></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="contactMessagesPager"></div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════ -->
       <!-- VIEW: USERS                                 -->
       <!-- ═══════════════════════════════════════════ -->
       <div class="view" id="view-users">
@@ -1163,6 +1200,9 @@
             <option value="reject_doctor">Refus médecin</option>
             <option value="cancel_appointment">Annulation RDV</option>
             <option value="toggle_maintenance">Mode maintenance</option>
+            <option value="mark_contact_read">Message lu</option>
+            <option value="archive_contact_submission">Message archivé</option>
+            <option value="delete_contact_submission">Message supprimé</option>
           </select>
           <span class="badge badge-neutral" id="auditCountLabel">–</span>
         </div>
@@ -1296,6 +1336,20 @@
       <div id="patientModalContent"></div>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closeModal('patientModal')">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact Message Detail Modal (read-only content, conditional actions) -->
+  <div class="modal-overlay" id="contactMessageModal">
+    <div class="modal-box">
+      <h3><i class="fas fa-envelope-open-text"></i> Message de Contact</h3>
+      <div id="contactMessageModalContent"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal('contactMessageModal')">Fermer</button>
+        <button class="btn btn-outline" id="markContactReadBtn" onclick="markContactReadFromModal()"><i class="fas fa-envelope-open"></i> Marquer comme lu</button>
+        <button class="btn btn-outline" id="archiveContactBtn" onclick="archiveContactFromModal()"><i class="fas fa-box-archive"></i> Archiver</button>
+        <button class="btn btn-danger btn-sm" id="deleteContactBtn" onclick="deleteContactFromModal()"><i class="fas fa-trash-alt"></i> Supprimer</button>
       </div>
     </div>
   </div>
@@ -1528,6 +1582,7 @@
   const viewTitles = {
     dashboard: ['Vue d\'ensemble', 'Tableau de bord administrateur · MedNex'],
     approvals: ['Approbations Médecins', 'Validation des licences médicales'],
+    contactmessages: ['Messages de contact', 'Demandes reçues via le formulaire de contact du site'],
     users: ['Gestion des Utilisateurs', 'Tous les comptes de la plateforme'],
     doctors: ['Médecins', 'Liste complète des médecins inscrits'],
     patients: ['Patients', 'Liste complète des patients inscrits'],
@@ -1561,11 +1616,15 @@
   // ── Data stores ───────────────────────────────────────────────
   let allDoctors = [], allPatients = [], allAppts = [], allRx = [];
   let currentDoctorId = null;
+  let allContactMessagesFull = [];
+  const contactMessagesState = { page: 1, search: '', status: '' };
+  let modalContactMessageId = null;
 
   // ── Load per-view ─────────────────────────────────────────────
   async function loadViewData(name) {
     if (name === 'dashboard') await loadDashboard();
     if (name === 'approvals') await loadApprovals();
+    if (name === 'contactmessages') await loadContactMessages();
     if (name === 'users')     await loadUsers();
     if (name === 'doctors')   await loadDoctorsTable();
     if (name === 'patients')  await loadPatientsTable();
@@ -1773,6 +1832,15 @@
       document.getElementById('pendingTrend').style.display = 'inline-flex';
       document.getElementById('notifDot').style.display = 'block';
     }
+
+    // Contact messages unread badge — separate, isolated query so it
+    // can't affect the existing KPI Promise.all above in any way.
+    const { count: unreadContactCount } = await sb
+      .from('contact_submissions')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'new');
+    const cb = document.getElementById('contactBadgeNav');
+    if (cb) cb.textContent = unreadContactCount || 0;
 
     // Donut chart
     const { data: apptStatuses } = await sb.from('appointments').select('status');
@@ -2210,6 +2278,148 @@
 
   function approveDoctorFromModal() { if (modalDoctorId) approveDoctor(modalDoctorId); }
   function rejectDoctorFromModal()  { if (modalDoctorId) rejectDoctor(modalDoctorId); }
+
+  // ── CONTACT MESSAGES ─────────────────────────────────────────
+  const CONTACT_TYPE_LABEL = { patient: 'Patient', doctor: 'Médecin', organization: 'Organisation', other: 'Autre' };
+  const CONTACT_STATUS_LABEL = { new: 'Nouveau', read: 'Lu', archived: 'Archivé' };
+  const CONTACT_STATUS_BADGE = { new: 'badge-warning', read: 'badge-info', archived: 'badge-neutral' };
+
+  function buildContactMessagesQuery(base) {
+    let q = base;
+    if (contactMessagesState.status) q = q.eq('status', contactMessagesState.status);
+    if (contactMessagesState.search) {
+      const s = contactMessagesState.search;
+      q = q.or(`first_name.ilike.%${s}%,last_name.ilike.%${s}%,email.ilike.%${s}%,subject.ilike.%${s}%`);
+    }
+    return q;
+  }
+
+  async function loadContactMessages(page = 1) {
+    contactMessagesState.page = page;
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    const { data, count, error } = await buildContactMessagesQuery(
+      sb.from('contact_submissions').select('*', { count: 'exact' })
+    ).order('created_at', { ascending: false }).range(from, to);
+
+    if (error) {
+      console.error('loadContactMessages error:', error);
+      showToast('error', error.message);
+      return;
+    }
+    allContactMessagesFull = data || [];
+    document.getElementById('contactCountLabel').textContent = (count ?? allContactMessagesFull.length) + ' message(s)';
+    renderContactMessagesTable(allContactMessagesFull);
+    renderPager('contactMessagesPager', page, count || 0, PAGE_SIZE, loadContactMessages);
+  }
+
+  function renderContactMessagesTable(messages) {
+    const tb = document.getElementById('contactMessagesTableBody');
+    if (!messages.length) {
+      tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#8A9E96;">Aucun message</td></tr>';
+      return;
+    }
+    tb.innerHTML = messages.map(m => `
+      <tr style="cursor:pointer;" onclick="viewContactMessage('${esc(m.id)}')">
+        <td><strong>${esc(m.first_name)} ${esc(m.last_name)}</strong></td>
+        <td>${esc(m.email)}</td>
+        <td>${esc(CONTACT_TYPE_LABEL[m.submitter_type] || m.submitter_type || '–')}</td>
+        <td>${esc(m.subject ? (m.subject.length > 40 ? m.subject.slice(0,40) + '…' : m.subject) : '–')}</td>
+        <td><span class="badge ${CONTACT_STATUS_BADGE[m.status] || 'badge-neutral'}">${esc(CONTACT_STATUS_LABEL[m.status] || m.status)}</span></td>
+        <td>${formatDate(m.created_at)}</td>
+      </tr>`).join('');
+  }
+
+  const filterContactMessagesDebounced = debounce(() => loadContactMessages(1));
+  function filterContactMessages() {
+    contactMessagesState.search = document.getElementById('contactSearch')?.value.trim() || '';
+    contactMessagesState.status = document.getElementById('contactStatusFilter')?.value || '';
+    filterContactMessagesDebounced();
+  }
+
+  function viewContactMessage(id) {
+    const m = allContactMessagesFull.find(x => x.id === id);
+    if (!m) return;
+    modalContactMessageId = id;
+
+    document.getElementById('contactMessageModalContent').innerHTML = `
+      <div class="modal-row"><span class="label">Nom</span><span class="value">${esc(m.first_name)} ${esc(m.last_name)}</span></div>
+      <div class="modal-row"><span class="label">Email</span><span class="value">${esc(m.email)}</span></div>
+      <div class="modal-row"><span class="label">Téléphone</span><span class="value">${esc(m.phone || '–')}</span></div>
+      <div class="modal-row"><span class="label">Vous êtes</span><span class="value">${esc(CONTACT_TYPE_LABEL[m.submitter_type] || m.submitter_type || '–')}</span></div>
+      <div class="modal-row"><span class="label">Sujet</span><span class="value">${esc(m.subject)}</span></div>
+      <div class="modal-row"><span class="label">Statut</span><span class="value"><span class="badge ${CONTACT_STATUS_BADGE[m.status] || 'badge-neutral'}">${esc(CONTACT_STATUS_LABEL[m.status] || m.status)}</span></span></div>
+      <div class="modal-row"><span class="label">Reçu le</span><span class="value">${formatDate(m.created_at)}</span></div>
+      <div class="modal-row" style="flex-direction:column;gap:6px;"><span class="label">Message</span><span class="value" style="text-align:left;font-weight:400;font-size:0.85rem;line-height:1.6;white-space:pre-wrap;">${esc(m.message)}</span></div>
+    `;
+
+    // Conditional actions — only show what makes sense for the current status.
+    const markReadBtn = document.getElementById('markContactReadBtn');
+    const archiveBtn = document.getElementById('archiveContactBtn');
+    markReadBtn.style.display = m.status === 'new' ? 'inline-flex' : 'none';
+    archiveBtn.style.display = m.status !== 'archived' ? 'inline-flex' : 'none';
+    // Delete is always available regardless of status.
+
+    document.getElementById('contactMessageModal').classList.add('active');
+  }
+
+  async function markContactReadFromModal() {
+    if (!modalContactMessageId) return;
+    const { error } = await sb.from('contact_submissions').update({ status: 'read' }).eq('id', modalContactMessageId);
+    if (error) { showToast('error', error.message); return; }
+    await logAdminAction('mark_contact_read', 'contact_submissions', modalContactMessageId);
+    showToast('success', 'Message marqué comme lu');
+    closeModal('contactMessageModal');
+    await loadContactMessages(contactMessagesState.page);
+  }
+
+  async function archiveContactFromModal() {
+    if (!modalContactMessageId) return;
+    const { error } = await sb.from('contact_submissions').update({ status: 'archived' }).eq('id', modalContactMessageId);
+    if (error) { showToast('error', error.message); return; }
+    await logAdminAction('archive_contact_submission', 'contact_submissions', modalContactMessageId);
+    showToast('success', 'Message archivé');
+    closeModal('contactMessageModal');
+    await loadContactMessages(contactMessagesState.page);
+  }
+
+  function deleteContactFromModal() {
+    if (!modalContactMessageId) return;
+    const idToDelete = modalContactMessageId;
+    confirmAction(
+      'Supprimer ce message ?',
+      'Cette action est irréversible. Le message sera définitivement supprimé.',
+      'btn-danger',
+      'Supprimer',
+      async () => {
+        const { error } = await sb.from('contact_submissions').delete().eq('id', idToDelete);
+        if (error) { showToast('error', error.message); return; }
+        await logAdminAction('delete_contact_submission', 'contact_submissions', idToDelete);
+        showToast('warning', 'Message supprimé');
+        closeModal('contactMessageModal');
+        await loadContactMessages(contactMessagesState.page);
+      }
+    );
+  }
+
+  async function exportContactMessagesCSV() {
+    const { data, error } = await buildContactMessagesQuery(
+      sb.from('contact_submissions').select('*')
+    ).order('created_at', { ascending: false }).limit(EXPORT_MAX_ROWS);
+    if (error) { showToast('error', error.message); return; }
+    if ((data || []).length === EXPORT_MAX_ROWS) showToast('warning', `Export limité à ${EXPORT_MAX_ROWS} lignes`);
+    exportToCSV(data, [
+      ['Prénom', 'first_name'],
+      ['Nom', 'last_name'],
+      ['Email', 'email'],
+      ['Téléphone', m => m.phone || '–'],
+      ['Type', m => CONTACT_TYPE_LABEL[m.submitter_type] || m.submitter_type || '–'],
+      ['Sujet', 'subject'],
+      ['Message', 'message'],
+      ['Statut', m => CONTACT_STATUS_LABEL[m.status] || m.status],
+      ['Reçu le', m => formatDate(m.created_at)],
+    ], 'messages-contact');
+  }
 
   // ── USERS TABLE ───────────────────────────────────────────────
   async function loadUsers() {
@@ -2656,6 +2866,9 @@
     remove_admin: { label: 'Suppression admin', badge: 'badge-danger' },
     promote_super_admin: { label: 'Promotion super admin', badge: 'badge-purple' },
     demote_super_admin: { label: 'Rétrogradation super admin', badge: 'badge-warning' },
+    mark_contact_read: { label: 'Message lu', badge: 'badge-info' },
+    archive_contact_submission: { label: 'Message archivé', badge: 'badge-neutral' },
+    delete_contact_submission: { label: 'Message supprimé', badge: 'badge-danger' },
   };
 
   async function loadAuditLog() {
@@ -3011,6 +3224,13 @@
   window.confirmBulkReject    = confirmBulkReject;
   window.confirmRejectDoctor  = confirmRejectDoctor;
   window.viewDoctorDetail     = viewDoctorDetail;
+  window.loadContactMessages  = loadContactMessages;
+  window.filterContactMessages = filterContactMessages;
+  window.viewContactMessage   = viewContactMessage;
+  window.markContactReadFromModal = markContactReadFromModal;
+  window.archiveContactFromModal  = archiveContactFromModal;
+  window.deleteContactFromModal   = deleteContactFromModal;
+  window.exportContactMessagesCSV = exportContactMessagesCSV;
   window.viewPatientDetail    = viewPatientDetail;
   window.approveDoctorFromModal = approveDoctorFromModal;
   window.rejectDoctorFromModal  = rejectDoctorFromModal;
