@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trouvez un médecin - MedNex</title>
+<link rel="icon" href="/chismya.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/maintenance-check.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#134F33;--secondary:#1C7A4D;--light-green:#EAF7EF;--bg:#F7FAF8;--border:#E5ECE8;--success:#22C55E;--danger:#EF4444;--radius-lg:28px;--radius-md:18px;--transition:0.25s cubic-bezier(.25,.46,.45,.94)}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:#0B1E18;min-height:100vh}
+.navbar{display:flex;justify-content:space-between;align-items:center;padding:14px 28px;background:rgba(255,255,255,0.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:12px}
+.navbar .logo{display:flex;align-items:center;text-decoration:none}
+.nav-links{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.nav-links a{text-decoration:none;font-size:0.85rem;font-weight:600;padding:8px 18px;border-radius:60px;transition:all var(--transition)}
+.nav-links .back-link{color:var(--primary)}
+.nav-links .back-link:hover{background:var(--light-green)}
+.nav-links .login-link{background:var(--primary);color:white}
+.nav-links .login-link:hover{background:var(--secondary)}
+.nav-links .login-link.outline{background:transparent;border:1px solid var(--border);color:#1A3A2E}
+.nav-links .login-link.outline:hover{border-color:var(--primary);background:var(--light-green)}
+
+.wrap{max-width:1200px;margin:0 auto;padding:36px 20px 60px}
+.directory-header{text-align:center;margin-bottom:32px}
+.directory-header h1{font-size:clamp(1.6rem,3.5vw,2.2rem);font-weight:800;letter-spacing:-0.5px;margin-bottom:8px}
+.directory-header p{color:#5A6F66;font-size:0.95rem}
+
+.filters-bar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;background:white;border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;box-shadow:0 8px 24px rgba(0,32,16,0.04)}
+.filters-bar input,.filters-bar select{flex:1;min-width:180px;padding:11px 16px;border-radius:60px;border:1.5px solid var(--border);font-family:inherit;font-size:0.88rem;outline:none;transition:all var(--transition);background:var(--bg)}
+.filters-bar input:focus,.filters-bar select:focus{border-color:var(--secondary);box-shadow:0 0 0 3px rgba(28,122,77,0.1);background:white}
+
+.results-meta{font-size:0.82rem;color:#5A6F66;margin-bottom:16px;padding:0 4px}
+
+.doctor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;min-height:200px}
+.doctor-card{background:white;border-radius:var(--radius-md);padding:20px;border:1px solid var(--border);transition:all var(--transition);text-decoration:none;color:inherit;display:block}
+.doctor-card:hover{transform:translateY(-4px);box-shadow:0 20px 40px -12px rgba(0,32,16,0.12);border-color:rgba(19,79,51,0.15)}
+.doctor-card .doc-avatar{width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,var(--primary),var(--secondary));color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.3rem;margin-bottom:14px}
+.doctor-card h5{font-weight:700;font-size:1rem;margin-bottom:4px}
+.doctor-card .specialty{font-size:0.82rem;color:var(--secondary);font-weight:600;margin-bottom:6px}
+.doctor-card .city{font-size:0.78rem;color:#5A6F66;margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.doctor-card .rating-row{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:0.8rem}
+.doctor-card .rating-row .count{color:#8A9E96}
+.doctor-card .desc-snippet{font-size:0.78rem;color:#5A6F66;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.doctor-card .view-profile{margin-top:12px;font-size:0.78rem;font-weight:700;color:var(--primary);display:flex;align-items:center;gap:6px}
+
+.empty-state{grid-column:1/-1;text-align:center;padding:50px 20px;color:#8A9E96}
+.empty-state i{font-size:2.5rem;opacity:0.35;display:block;margin-bottom:12px}
+
+.pager-row{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:32px}
+.pager-btn{width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:white;color:var(--primary);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--transition)}
+.pager-btn:hover:not(:disabled){background:var(--light-green);border-color:var(--secondary)}
+.pager-btn:disabled{opacity:0.35;cursor:not-allowed}
+.pager-info{font-size:0.85rem;font-weight:600;color:#3A5A4E}
+
+@media(max-width:600px){
+  .filters-bar{flex-direction:column}
+  .filters-bar input,.filters-bar select{min-width:unset}
+}
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="logo">
+    <img src="/logo_navbar.png" alt="MedNex" style="height:34px;object-fit:contain;border-radius:8px;" onerror="this.src='https://placehold.co/160x40/134F33/white?text=MedNex'">
+  </a>
+  <div class="nav-links">
+    <a href="index.html" class="back-link"><i class="fas fa-arrow-left"></i> Accueil</a>
+    <a href="doctor-login.html" class="login-link outline"><i class="fas fa-user-md"></i> Médecins</a>
+    <a href="patient-login.html" class="login-link"><i class="fas fa-user"></i> Espace Patient</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="directory-header">
+    <h1>Trouvez votre médecin</h1>
+    <p>Parcourez notre réseau de médecins vérifiés partout au Maroc</p>
+  </div>
+
+  <div class="filters-bar">
+    <input type="text" id="searchName" placeholder="Rechercher par nom…" oninput="filterDirectory()">
+    <select id="specialtyFilter" onchange="filterDirectory()">
+      <option value="">Toutes les spécialités</option>
+    </select>
+    <select id="cityFilter" onchange="filterDirectory()">
+      <option value="">Toutes les villes</option>
+    </select>
+  </div>
+
+  <div class="results-meta" id="resultsMeta">Chargement…</div>
+
+  <div class="doctor-grid" id="doctorGrid">
+    <div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div>
+  </div>
+
+  <div id="pagerContainer"></div>
+</div>
+
+<script>
+const sb = window.__mednexSupabase || supabase.createClient(
+  "https://xisdwbyermvbqjuqjagn.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc2R3Ynllcm12YnFqdXFqYWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzUyOTksImV4cCI6MjA5ODExMTI5OX0.Ixz6hlLsOUkH04uNivcH81P4-MWeIc_pJZTwnAfm57I"
+);
+
+const PAGE_SIZE = 12;
+let currentPage = 1;
+let currentSearch = '';
+let currentSpecialty = '';
+let currentCity = '';
+
+function esc(v) {
+  return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function starsHTML(rating, size) {
+  rating = Math.round(Number(rating) || 0);
+  size = size || '0.85rem';
+  let html = '';
+  for (let i = 1; i <= 5; i++) html += `<i class="fa${i<=rating?'s':'r'} fa-star" style="color:#F59E0B;font-size:${size};"></i>`;
+  return html;
+}
+
+function debounce(fn, wait = 350) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+}
+
+// ── Populate specialty/city filter dropdowns ────────────────────
+// Reads only the two narrow columns needed for distinct-value
+// extraction — a much lighter query than the main paginated listing
+// below, same pattern already used by patient-dashboard.html's
+// loadSpecialties().
+async function loadFilterOptions() {
+  const { data } = await sb.from('doctors').select('specialty, city').eq('status', 'approved');
+  const specialties = [...new Set((data || []).map(d => d.specialty))].filter(Boolean).sort();
+  const cities = [...new Set((data || []).map(d => d.city))].filter(Boolean).sort();
+
+  const specSel = document.getElementById('specialtyFilter');
+  specialties.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s; o.textContent = s;
+    specSel.appendChild(o);
+  });
+
+  const citySel = document.getElementById('cityFilter');
+  cities.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    citySel.appendChild(o);
+  });
+}
+
+// ── Main paginated, server-side filtered query ──────────────────
+function buildDirectoryQuery(base) {
+  let q = base.eq('status', 'approved');
+  if (currentSpecialty) q = q.eq('specialty', currentSpecialty);
+  if (currentCity) q = q.eq('city', currentCity);
+  if (currentSearch) q = q.ilike('full_name', `%${currentSearch}%`);
+  return q;
+}
+
+async function loadDoctors(page = 1) {
+  currentPage = page;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  const { data, count, error } = await buildDirectoryQuery(
+    sb.from('doctors').select('id, full_name, specialty, city, description, avg_rating, review_count', { count: 'exact' })
+  ).order('full_name').range(from, to);
+
+  if (error) {
+    document.getElementById('doctorGrid').innerHTML =
+      `<div class="empty-state"><i class="fas fa-triangle-exclamation"></i><p>Erreur: ${esc(error.message)}</p></div>`;
+    document.getElementById('resultsMeta').textContent = '';
+    document.getElementById('pagerContainer').innerHTML = '';
+    return;
+  }
+
+  renderDoctorGrid(data || []);
+  document.getElementById('resultsMeta').textContent = `${count ?? 0} médecin(s) trouvé(s)`;
+  renderPager(page, count || 0);
+}
+
+function renderDoctorGrid(doctors) {
+  const grid = document.getElementById('doctorGrid');
+  if (!doctors.length) {
+    grid.innerHTML = '<div class="empty-state"><i class="fas fa-user-doctor"></i><p>Aucun médecin trouvé</p></div>';
+    return;
+  }
+  grid.innerHTML = doctors.map(d => `
+    <a href="doctor-view.html?id=${esc(d.id)}" class="doctor-card">
+      <div class="doc-avatar">${esc((d.full_name || 'D').charAt(0).toUpperCase())}</div>
+      <h5>Dr. ${esc(d.full_name)}</h5>
+      <div class="specialty">${esc(d.specialty || '–')}</div>
+      ${d.city ? `<div class="city"><i class="fas fa-map-marker-alt"></i> ${esc(d.city)}</div>` : ''}
+      <div class="rating-row">${starsHTML(d.avg_rating)} <span class="count">(${esc(String(d.review_count || 0))} avis)</span></div>
+      ${d.description ? `<div class="desc-snippet">${esc(d.description)}</div>` : ''}
+      <div class="view-profile">Voir le profil <i class="fas fa-arrow-right"></i></div>
+    </a>`).join('');
+}
+
+// ── Numbered pagination, matching the pattern already used in the
+// admin dashboard (page X / Y with prev/next), reimplemented locally
+// since this is a standalone public page with its own script block. ──
+function renderPager(page, totalCount) {
+  const el = document.getElementById('pagerContainer');
+  if (totalCount === 0) { el.innerHTML = ''; return; }
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  el.innerHTML = `
+    <div class="pager-row">
+      <button class="pager-btn" ${page <= 1 ? 'disabled' : ''} onclick="loadDoctors(${page - 1})"><i class="fas fa-chevron-left"></i></button>
+      <span class="pager-info">Page ${page} / ${totalPages}</span>
+      <button class="pager-btn" ${page >= totalPages ? 'disabled' : ''} onclick="loadDoctors(${page + 1})"><i class="fas fa-chevron-right"></i></button>
+    </div>`;
+}
+
+const filterDirectoryDebounced = debounce(() => loadDoctors(1));
+function filterDirectory() {
+  currentSearch = document.getElementById('searchName').value.trim();
+  currentSpecialty = document.getElementById('specialtyFilter').value;
+  currentCity = document.getElementById('cityFilter').value;
+  filterDirectoryDebounced();
+}
+
+// ── Init — read ?specialty= / ?city= / ?q= from the URL so
+// index.html's specialty cards can deep-link into a pre-filtered view ──
+(async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const qSpecialty = params.get('specialty');
+  const qCity = params.get('city');
+  const qSearch = params.get('q');
+
+  await loadFilterOptions();
+
+  if (qSpecialty) {
+    document.getElementById('specialtyFilter').value = qSpecialty;
+    currentSpecialty = qSpecialty;
+  }
+  if (qCity) {
+    document.getElementById('cityFilter').value = qCity;
+    currentCity = qCity;
+  }
+  if (qSearch) {
+    document.getElementById('searchName').value = qSearch;
+    currentSearch = qSearch;
+  }
+
+  await loadDoctors(1);
+})();
+</script>
+</body>
+</html>
