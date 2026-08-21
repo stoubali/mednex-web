@@ -89,7 +89,7 @@ const docId = params.get('id');
 (async function init() {
   if (!docId) { document.body.innerHTML = '<p style="padding:40px;text-align:center;">Médecin introuvable.</p>'; return; }
 
-  const { data: doc, error } = await sb.from('doctors').select('id, full_name, specialty, city, clinic_address, description, avg_rating, review_count').eq('id', docId).eq('status','approved').single();
+  const { data: doc, error } = await sb.from('public_doctors').select('id, full_name, specialty, city, clinic_address, description, avg_rating, review_count').eq('id', docId).single();
   if (error || !doc) { document.body.innerHTML = '<p style="padding:40px;text-align:center;">Médecin introuvable ou non disponible.</p>'; return; }
 
   $('avatarXl').textContent = (doc.full_name||'D').charAt(0).toUpperCase();

@@ -786,7 +786,7 @@ async function submitReview() {
   selectedSlot = null;
   $('slotGrid').innerHTML = '<div style="font-size:0.8rem;color:#5A6F66;padding:8px;">Sélectionnez un médecin et une date</div>';
 
-  let query = sb.from('doctors').select('id,full_name,specialty,city,avg_rating,review_count').eq('status','approved').order('full_name');
+  let query = sb.from('public_doctors').select('id,full_name,specialty,city,avg_rating,review_count').order('full_name');
   if (specialty) query = query.eq('specialty', specialty);
 
   const { data } = await query;
@@ -910,7 +910,7 @@ async function submitReview() {
 
   // ── Specialties dropdown ──────────────────────────────────────
   async function loadSpecialties() {
-    const { data } = await sb.from('doctors').select('specialty').eq('status','approved');
+    const { data } = await sb.from('public_doctors').select('specialty');
     const specialties = [...new Set((data||[]).map(d=>d.specialty))].filter(Boolean).sort();
     const sel = $('specialtySelect');
     sel.innerHTML = '<option value="">Toutes les spécialités</option>';
@@ -939,7 +939,7 @@ async function submitReview() {
   if (preselectId) {
     const card = document.getElementById(`doc-${preselectId}`);
     if (card) {
-      const { data: d } = await sb.from('doctors').select('full_name').eq('id', preselectId).single();
+      const { data: d } = await sb.from('public_doctors').select('full_name').eq('id', preselectId).single();
       if (d) selectDoctor(preselectId, d.full_name);
       card.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }

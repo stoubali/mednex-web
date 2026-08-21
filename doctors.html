@@ -135,7 +135,7 @@ function debounce(fn, wait = 350) {
 // below, same pattern already used by patient-dashboard.html's
 // loadSpecialties().
 async function loadFilterOptions() {
-  const { data } = await sb.from('doctors').select('specialty, city').eq('status', 'approved');
+  const { data } = await sb.from('public_doctors').select('specialty, city');
   const specialties = [...new Set((data || []).map(d => d.specialty))].filter(Boolean).sort();
   const cities = [...new Set((data || []).map(d => d.city))].filter(Boolean).sort();
 
@@ -155,8 +155,10 @@ async function loadFilterOptions() {
 }
 
 // ── Main paginated, server-side filtered query ──────────────────
+// status='approved' is guaranteed by public_doctors itself — no
+// client-side filter needed or applied here.
 function buildDirectoryQuery(base) {
-  let q = base.eq('status', 'approved');
+  let q = base;
   if (currentSpecialty) q = q.eq('specialty', currentSpecialty);
   if (currentCity) q = q.eq('city', currentCity);
   if (currentSearch) q = q.ilike('full_name', `%${currentSearch}%`);
@@ -169,7 +171,7 @@ async function loadDoctors(page = 1) {
   const to = from + PAGE_SIZE - 1;
 
   const { data, count, error } = await buildDirectoryQuery(
-    sb.from('doctors').select('id, full_name, specialty, city, description, avg_rating, review_count', { count: 'exact' })
+    sb.from('public_doctors').select('id, full_name, specialty, city, description, avg_rating, review_count', { count: 'exact' })
   ).order('full_name').range(from, to);
 
   if (error) {
