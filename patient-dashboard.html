@@ -325,6 +325,42 @@
   let upcomingAppointments = [];
   let medicalRecordsData = [];
 
+  // ── Shared doctor-info lookup (Finding #6 — Option D) ───────────
+  // Replaces the embedded doctors(full_name, specialty) relationship
+  // previously used by loadRecords()/loadPrescriptions(), which broke
+  // for patient sessions after Finding #3 narrowed doctors_select to
+  // self-only. Reads from public_doctors (safe, patient-facing) and
+  // caches per doctor_id so the same doctor is never re-fetched across
+  // calls in the same page session.
+  let doctorInfoCache = {};
+
+  async function getDoctorsMap(ids) {
+    const uniqueIds = [...new Set((ids || []).filter(Boolean))];
+    if (!uniqueIds.length) return {};
+
+    const missing = uniqueIds.filter(id => !doctorInfoCache[id]);
+
+    if (missing.length) {
+      const { data, error } = await sb
+        .from('public_doctors')
+        .select('id, full_name, specialty')
+        .in('id', missing);
+
+      if (error) {
+        // Consistent with existing dashboard error handling: log and
+        // continue with whatever is cached — callers already fall back
+        // to '–' for any doctor not present in the returned map.
+        console.warn('[getDoctorsMap] public_doctors lookup failed:', error.message);
+      }
+
+      (data || []).forEach(doctor => { doctorInfoCache[doctor.id] = doctor; });
+    }
+
+    const map = {};
+    uniqueIds.forEach(id => { map[id] = doctorInfoCache[id] || null; });
+    return map;
+  }
+
   // ── Toast ─────────────────────────────────────────────────────
   function showToast(type, message) {
     const icons = {success:'fa-check-circle',error:'fa-times-circle',warning:'fa-exclamation-triangle',info:'fa-info-circle'};
@@ -372,7 +408,13 @@
   // ── Upcoming appointments ─────────────────────────────────────
   async function loadAppointments() {
     const today = new Date().toISOString().split('T')[0];
-    const { data } = await sb.from('appointment_details').select('*').eq('patient_id', patientId).gte('date', today).order('date').order('start_time');
+    // Finding #6: patient_appointment_details is a patient-scoped view
+    // (own WHERE clause keys off auth.uid()) that joins the base
+    // doctors table safely — appointment_details itself still uses an
+    // INNER JOIN against doctors, which drops the whole row for a
+    // patient session post-Finding-#3. No .eq('patient_id', ...) needed:
+    // the view already scopes to the calling patient server-side.
+    const { data } = await sb.from('patient_appointment_details').select('*').gte('date', today).order('date').order('start_time');
 
     upcomingAppointments = data || [];
     animateCount($('kpiAppts'), upcomingAppointments.length);
@@ -435,8 +477,11 @@ function renderStarPicker() {
 
 async function loadPastAppointments() {
   const today = new Date().toISOString().split('T')[0];
-  const { data: past } = await sb.from('appointment_details').select('*')
-    .eq('patient_id', patientId).lt('date', today).eq('status', 'confirmed')
+  // Finding #6: same rationale as loadAppointments() above — use the
+  // patient-scoped view so the appointment row survives the doctor
+  // join for a patient session. Filter/order/limit semantics unchanged.
+  const { data: past } = await sb.from('patient_appointment_details').select('*')
+    .lt('date', today).eq('status', 'confirmed')
     .order('date', { ascending: false }).limit(20);
 
   const { data: myReviews } = await sb.from('reviews').select('*').eq('patient_id', patientId);
@@ -550,12 +595,14 @@ async function submitReview() {
   const RECORD_STATUS_BADGE = { draft: 'badge-warning', completed: 'badge-success', amended: 'badge-info' };
 
   async function loadRecords() {
-    // doctors(full_name,specialty) is a live join — specialty is read
-    // from the doctor's current profile, not a point-in-time snapshot
-    // (the medical_records.specialty column was intentionally removed).
+    // Finding #6: doctor name/specialty are now resolved via the shared
+    // getDoctorsMap() helper (public_doctors), not an embedded
+    // doctors(full_name, specialty) relationship — that embed relied on
+    // reading the base doctors table, which is self-only for a patient
+    // session since Finding #3.
     const { data, error } = await sb
       .from('medical_records')
-      .select('*, doctors(full_name, specialty)')
+      .select('*')
       .eq('patient_id', patientId)
       .order('record_date', { ascending: false });
 
@@ -571,6 +618,9 @@ async function submitReview() {
       $('recordsTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#5A6F66;">Aucun dossier médical</td></tr>';
       return;
     }
+
+    const doctorsMap = await getDoctorsMap(medicalRecordsData.map(r => r.doctor_id));
+    medicalRecordsData.forEach(r => { r.doctors = doctorsMap[r.doctor_id] || null; });
 
     $('recordsTableBody').innerHTML = medicalRecordsData.map(r => `
       <tr style="cursor:pointer;" onclick="openRecordDetailModal('${esc(r.id)}')">
@@ -608,23 +658,29 @@ async function submitReview() {
   async function loadPrescriptions() {
   window.__rxStore = {};
 
+  // Finding #6: doctor name/specialty resolved via getDoctorsMap()
+  // (public_doctors), replacing the embedded doctors(full_name, specialty)
+  // relationship — same rationale as loadRecords() above.
   const { data } = await sb
     .from('prescriptions')
-    .select('*, doctors(full_name, specialty)')
+    .select('*')
     .eq('patient_id', patientId)
     .eq('is_active', true)
     .order('prescribed_at', { ascending: false });
+
+  const doctorsMap = await getDoctorsMap((data || []).map(rx => rx.doctor_id));
 
   const grouped = {};
   (data || []).forEach(rx => {
     const key = `${rx.appointment_id || rx.doctor_id}_${rx.prescribed_at}`;
     if (!grouped[key]) {
+      const doctor = doctorsMap[rx.doctor_id];
       grouped[key] = {
         doctor_id: rx.doctor_id,
         patient_id: rx.patient_id,
         appointment_id: rx.appointment_id,
-        doctor_name: rx.doctors?.full_name || '–',
-        doctor_specialty: rx.doctors?.specialty || '–',
+        doctor_name: doctor?.full_name || '–',
+        doctor_specialty: doctor?.specialty || '–',
         prescribed_at: rx.prescribed_at,
         diagnosis: extractFieldFromInstructions(rx.instructions, 'Diagnostic'),
         recommendations: extractFieldFromInstructions(rx.instructions, 'Recommandations'),
