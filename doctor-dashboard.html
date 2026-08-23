@@ -1701,25 +1701,20 @@
       return null;
     }
 
-    // Get medications from preview list
-    const medListElement = $(prefix ? 'editPreviewMedList' : 'previewMedList');
-    const medications = [];
-    
-    if (medListElement) {
-      const medItems = medListElement.querySelectorAll('li');
-      medItems.forEach(item => {
-        const text = item.textContent.trim();
-        if (text !== 'Aucun' && text !== '') {
-          // Parse medication format: "Name - Dosage - Frequency"
-          const parts = text.split(' - ');
-          medications.push({
-            name: parts[0] ? parts[0].trim() : 'N/A',
-            dosage: parts[1] ? parts[1].trim() : 'N/A',
-            frequency: parts[2] ? parts[2].trim() : 'N/A'
-          });
-        }
-      });
-    }
+    // Build medication payload directly from the underlying state arrays
+    // (medications / editMedications) — NOT by re-parsing the rendered
+    // preview <li> text. The preview uses '·' as a display-only separator;
+    // parsing it back with split(' - ') never matched, which silently
+    // corrupted every generated PDF's dosage/frequency (Audit Finding #2:
+    // PDF medication data bug). The local variable is named
+    // medicationsPayload (not medications) to avoid shadowing the
+    // module-level `medications` array used by the 'new' prescription flow.
+    const sourceMedications = mode === 'edit' ? editMedications : medications;
+    const medicationsPayload = (sourceMedications || []).map(m => ({
+      name: (m.name || '').trim() || 'N/A',
+      dosage: (m.dosage || '').trim() || 'N/A',
+      frequency: (m.frequency || '').trim() || 'N/A'
+    }));
 
     // Get doctor name from the authenticated session (set during auth check)
     const doctorName = window.doctorFullName || 'Non spécifié';
@@ -1762,7 +1757,7 @@
       diagnosis: (diagnosisField && diagnosisField.value) ? diagnosisField.value.trim() : '',
       clinical_notes: (clinicalField && clinicalField.value) ? clinicalField.value.trim() : '',
       recommendations: (recommendationsField && recommendationsField.value) ? recommendationsField.value.trim() : '',
-      medications: medications,
+      medications: medicationsPayload,
       doctor_name: doctorName.trim()
     };
 
