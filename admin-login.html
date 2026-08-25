@@ -355,7 +355,11 @@ body{
 
   </form>
 
-  <a href="index.html" class="footer-link">
+  <a href="forgot-password.html" class="footer-link">
+    <i class="fas fa-key"></i> Mot de passe oublié ?
+  </a>
+
+  <a href="index.html" class="footer-link" style="margin-top:10px;">
     <i class="fas fa-arrow-left"></i> Retour à l'accueil
   </a>
 
@@ -397,12 +401,20 @@ const eyeIcon   = document.getElementById('eyeIcon');
     .select('id')
     .eq('auth_user_id', session.user.id)
     .single();
-  if (admin) {
-    sessionStorage.setItem(SESSION_KEY, 'granted');
-    window.location.replace('admin-dashboard.html');
-  } else {
+  if (!admin) {
     await sb.auth.signOut();
+    return;
   }
+  // Onboarding not yet complete (Finding #3) — preserve the session and
+  // resume password setup rather than signing out. Only block when the
+  // flag is EXPLICITLY false; any other value (true, or absent for every
+  // admin created before this feature existed) is treated as onboarded.
+  if (session.user.app_metadata?.onboarded === false) {
+    window.location.replace('admin-accept-invite.html');
+    return;
+  }
+  sessionStorage.setItem(SESSION_KEY, 'granted');
+  window.location.replace('admin-dashboard.html');
 })();
 
 // ── Check lockout on page load ─────────────────────────────────
@@ -496,6 +508,7 @@ form.addEventListener('submit', async (e) => {
   });
 
   let isAdmin = false;
+  let needsOnboarding = false;
   if (authError) {
     console.error('[admin-login] signInWithPassword error:', authError.message);
   }
@@ -507,7 +520,20 @@ form.addEventListener('submit', async (e) => {
       .eq('auth_user_id', authData.user.id)
       .single();
     isAdmin = !!admin;
-    if (!isAdmin) await sb.auth.signOut();
+    if (!isAdmin) {
+      await sb.auth.signOut();
+    } else {
+      // Onboarding not yet complete (Finding #3) — same rule as
+      // checkExistingSession(): block only on an explicit false.
+      needsOnboarding = authData.user.app_metadata?.onboarded === false;
+    }
+  }
+
+  if (needsOnboarding) {
+    // Preserve the session — admin-accept-invite.html's resumed-session
+    // path picks this up without needing the original invite link.
+    window.location.href = 'admin-accept-invite.html';
+    return;
   }
 
   if (isAdmin) {

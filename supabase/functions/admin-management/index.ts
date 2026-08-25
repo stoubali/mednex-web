@@ -47,17 +47,16 @@ Deno.serve(async (req) => {
   // ── 2. Privileged client (service_role — bypasses RLS). Only used server-side, never sent to the browser. ──
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-  // ── 3. Verify the caller is actually a super admin (server-side check, not trusting the client) ──
+  // ── 3. Look up the caller's own admin_users row (server-side, not
+  //      trusting the client). Fetched unconditionally here — but the
+  //      super-admin requirement below is applied per-action, not
+  //      globally, because "complete_invite" must be callable by a
+  //      freshly-invited admin who is (by design) NOT a super admin. ──
   const { data: callerRow, error: callerRowErr } = await admin
     .from("admin_users")
     .select("id, is_super_admin")
     .eq("auth_user_id", caller.id)
     .maybeSingle();
-
-  if (callerRowErr) return json({ error: callerRowErr.message }, 500);
-  if (!callerRow || !callerRow.is_super_admin) {
-    return json({ error: "Only super admins can manage admin accounts" }, 403);
-  }
 
   let body: Record<string, unknown>;
   try {
@@ -86,6 +85,37 @@ Deno.serve(async (req) => {
     return count ?? 0;
   }
 
+  // ── ACTION: complete_invite ─────────────────────────────────────
+  // Called by an invited admin themselves, from admin-accept-invite.html,
+  // once they've set their password. Only requires the caller to have a
+  // genuine admin_users row — NOT super-admin status, since invitees are
+  // always created as regular (non-super) admins. This is deliberately
+  // placed BEFORE the super-admin gate below, which does not apply here.
+  // app_metadata can only be written server-side (service-role), which is
+  // exactly why this flag flip has to go through this Edge Function at
+  // all rather than being settable directly by the client. Phase C.2,
+  // Finding #3.
+  if (action === "complete_invite") {
+    if (callerRowErr) return json({ error: callerRowErr.message }, 500);
+    if (!callerRow) {
+      return json({ error: "No matching admin account found for this session" }, 403);
+    }
+
+    const { error: updErr } = await admin.auth.admin.updateUserById(caller.id, {
+      app_metadata: { onboarded: true },
+    });
+    if (updErr) return json({ error: updErr.message }, 500);
+
+    await logAction("complete_invite", callerRow.id, {});
+    return json({ success: true });
+  }
+
+  // ── Every action below this line requires super-admin status ────
+  if (callerRowErr) return json({ error: callerRowErr.message }, 500);
+  if (!callerRow || !callerRow.is_super_admin) {
+    return json({ error: "Only super admins can manage admin accounts" }, 403);
+  }
+
   // ── ACTION: invite ────────────────────────────────────────────
   // Creates a brand-new Supabase Auth account (or reuses one if the
   // email already exists) and inserts the corresponding admin_users row.
@@ -103,10 +133,26 @@ Deno.serve(async (req) => {
     if (existingAdmin) return json({ error: "Cet email est déjà administrateur" }, 409);
 
     const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: "https://mednex-web.vercel.app/admin-login.html",
+      redirectTo: "https://mednex-web.vercel.app/admin-accept-invite.html",
     });
 
     if (inviteErr) return json({ error: `Invitation échouée: ${inviteErr.message}` }, 500);
+
+    // Mark this invite as not-yet-onboarded via app_metadata — server-side-
+    // writable only, tamper-resistant against the invitee themselves (Finding
+    // #3 design). Deliberately a separate call: inviteUserByEmail's own
+    // `data` option maps to user_metadata, not app_metadata.
+    const { error: metaErr } = await admin.auth.admin.updateUserById(invited.user.id, {
+      app_metadata: { onboarded: false },
+    });
+
+    if (metaErr) {
+      const { error: rollbackErr } = await admin.auth.admin.deleteUser(invited.user.id);
+      if (rollbackErr) {
+        console.error("[admin-management] ROLLBACK FAILED for orphaned invited user (metadata step)", invited.user.id, rollbackErr.message);
+      }
+      return json({ error: `Invitation échouée: ${metaErr.message}` }, 500);
+    }
 
     const { data: newRow, error: insertErr } = await admin
       .from("admin_users")

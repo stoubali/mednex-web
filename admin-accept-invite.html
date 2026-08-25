@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Nouveau mot de passe - MedNex</title>
+<title>Activer mon compte administrateur - MedNex</title>
 <link rel="icon" href="/chismya.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -45,6 +45,13 @@ body{
 .header h2{ color:var(--med-primary); font-size:1.8rem; font-weight:800; margin-bottom:8px; letter-spacing:-0.5px; }
 .header p{ color:var(--med-text-light); line-height:1.5; font-size:0.9rem; font-weight:500; }
 
+/* Loading state (shown while we resolve which path applies) */
+#loadingBox{
+  display:flex; flex-direction:column; align-items:center; gap:14px;
+  padding:30px 0; color:var(--med-text-light); font-size:0.9rem; font-weight:500;
+}
+#loadingBox i{ font-size:1.8rem; color:var(--med-accent); }
+
 /* Alerts */
 #errorBox{
   display:none; background:#ffe8e8; color:#dc2626; padding:14px 18px; border-radius:24px;
@@ -52,7 +59,7 @@ body{
 }
 #errorBox i{ margin-right:8px; }
 
-/* Invalid link state */
+/* Invalid / expired state */
 #invalidBox{
   display:none; background:#fff7ed; color:#c2410c; padding:20px; border-radius:24px;
   margin-bottom:22px; font-size:0.88rem; font-weight:600; border-left:4px solid #f97316;
@@ -121,14 +128,6 @@ body{
 }
 .success-state h3{ color:var(--med-primary); font-size:1.4rem; font-weight:800; margin-bottom:8px; }
 .success-state p{ color:var(--med-text-light); font-size:0.9rem; line-height:1.5; margin-bottom:24px; }
-.redirect-btn{
-  display:inline-flex; align-items:center; gap:8px;
-  background:linear-gradient(95deg,var(--med-accent),var(--med-primary-light));
-  color:white; padding:12px 28px; border-radius:60px; font-weight:700;
-  font-size:0.9rem; text-decoration:none; transition:all 0.3s ease;
-  box-shadow:0 8px 20px rgba(44,122,94,0.3);
-}
-.redirect-btn:hover{ transform:translateY(-2px); box-shadow:0 14px 28px rgba(44,122,94,0.4); }
 
 /* Footer */
 .footer-link{
@@ -148,19 +147,24 @@ body{
   <div class="header">
     <img src="/image-removebg-preview.png" alt="MedNex" class="logo"
       onerror="this.src='https://placehold.co/400x120/0B3D2E/white?text=MedNex'">
-    <div class="icon-wrap"><i class="fas fa-lock-open"></i></div>
-    <h2>Nouveau mot de passe</h2>
-    <p>Choisissez un nouveau mot de passe sécurisé pour votre compte MedNex.</p>
+    <div class="icon-wrap"><i class="fas fa-user-shield"></i></div>
+    <h2>Activer mon compte</h2>
+    <p>Définissez votre mot de passe pour accéder à l'espace administrateur MedNex.</p>
   </div>
 
-  <!-- Invalid / expired link -->
+  <!-- Loading — shown while we resolve which entry path applies -->
+  <div id="loadingBox">
+    <i class="fas fa-spinner fa-spin"></i>
+    <span>Vérification de votre invitation…</span>
+  </div>
+
+  <!-- Invalid / expired invitation -->
   <div id="invalidBox">
     <i class="fas fa-exclamation-triangle"></i>
-    Ce lien est invalide ou a expiré.<br>
-    Veuillez faire une nouvelle demande de réinitialisation.
+    <span id="invalidMsg">Ce lien d'invitation est invalide ou a expiré.</span>
     <br><br>
-    <a href="forgot-password.html" style="color:#c2410c;font-weight:700;">
-      <i class="fas fa-redo"></i> Nouvelle demande
+    <a href="admin-login.html" style="color:#c2410c;font-weight:700;">
+      <i class="fas fa-arrow-right-to-bracket"></i> Aller à la connexion
     </a>
   </div>
 
@@ -171,7 +175,7 @@ body{
   </div>
 
   <!-- Form -->
-  <div class="form" id="formSection">
+  <div class="form" id="formSection" style="display:none;">
     <div class="input-group">
       <label><i class="fas fa-lock"></i> Nouveau mot de passe</label>
       <div class="input-wrap">
@@ -199,95 +203,152 @@ body{
       </div>
     </div>
 
-    <button class="submit-btn" id="submitBtn" onclick="updatePassword()" disabled>
-      <i class="fas fa-check-circle"></i> Mettre à jour le mot de passe
+    <button class="submit-btn" id="submitBtn" onclick="acceptInvite()" disabled>
+      <i class="fas fa-check-circle"></i> Activer mon compte
     </button>
   </div>
 
   <!-- Success state -->
   <div class="success-state" id="successState">
     <div class="success-icon-wrap"><i class="fas fa-check"></i></div>
-    <h3>Mot de passe mis à jour !</h3>
-    <p>Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.</p>
-    <a href="patient-login.html" class="redirect-btn" id="loginRedirectBtn">
-      <i class="fas fa-arrow-right-to-bracket"></i> Se connecter
-    </a>
+    <h3>Compte activé !</h3>
+    <p>Votre mot de passe a été défini avec succès. Vous êtes maintenant connecté à votre espace administrateur.</p>
   </div>
 
-  <a href="index.html" class="footer-link" id="homeLink">
-    <i class="fas fa-arrow-left"></i> Retour à l'accueil
+  <a href="admin-login.html" class="footer-link" id="loginLink" style="display:none;">
+    <i class="fas fa-arrow-left"></i> Retour à la connexion
   </a>
 </div>
 
 <script>
-// Use a fresh client (not the shared one) to avoid session conflicts.
-// detectSessionInUrl:false — this page already manually parses the hash
-// and calls setSession() itself below; disabling auto-detection removes
-// a timing race with the SDK silently consuming the hash first, without
-// changing behavior (setSession() was always the actual mechanism here).
+// detectSessionInUrl:false — this page manually parses the invite hash and
+// calls setSession() itself (Path A), and separately checks for an already-
+// active session (Path B, resumed onboarding). Leaving auto-detection on
+// would let the SDK silently consume the hash before our own code ever
+// gets to inspect `type=invite`, which is the exact failure mode this
+// entire page exists to close (Finding #3).
 const sb = supabase.createClient(
   "https://xisdwbyermvbqjuqjagn.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpc2R3Ynllcm12YnFqdXFqYWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzUyOTksImV4cCI6MjA5ODExMTI5OX0.Ixz6hlLsOUkH04uNivcH81P4-MWeIc_pJZTwnAfm57I",
   { auth: { detectSessionInUrl: false } }
 );
 
-const newPassInput     = document.getElementById('newPassword');
-const confirmPassInput = document.getElementById('confirmPassword');
-const submitBtn        = document.getElementById('submitBtn');
-const matchError       = document.getElementById('matchError');
-const errorBox         = document.getElementById('errorBox');
-const errorMsg         = document.getElementById('errorMsg');
-const strengthFill     = document.getElementById('strengthFill');
-const strengthLabel    = document.getElementById('strengthLabel');
+const $ = id => document.getElementById(id);
+const newPassInput     = $('newPassword');
+const confirmPassInput = $('confirmPassword');
+const submitBtn        = $('submitBtn');
+const matchError       = $('matchError');
+const errorBox         = $('errorBox');
+const errorMsg         = $('errorMsg');
+const strengthFill     = $('strengthFill');
+const strengthLabel    = $('strengthLabel');
 
 let sessionReady = false;
 
-// ── Parse the token from the URL hash ────────────────────────
-// Supabase emails a link like:
-// /reset-password.html#access_token=xxx&refresh_token=yyy&type=recovery
-async function initRecovery() {
-  const hash = window.location.hash;
-
-  if (!hash || !hash.includes('type=recovery')) {
-    // No recovery token in URL
-    document.getElementById('formSection').style.display = 'none';
-    document.getElementById('invalidBox').style.display = 'block';
-    return;
-  }
-
-  // Parse tokens from hash
-  const params = new URLSearchParams(hash.substring(1));
-  const accessToken  = params.get('access_token');
-  const refreshToken = params.get('refresh_token');
-
-  if (!accessToken) {
-    document.getElementById('formSection').style.display = 'none';
-    document.getElementById('invalidBox').style.display = 'block';
-    return;
-  }
-
-  // Set the session manually using the tokens from the URL
-  const { data, error } = await sb.auth.setSession({
-    access_token: accessToken,
-    refresh_token: refreshToken || ''
-  });
-
-  if (error || !data.session) {
-    document.getElementById('formSection').style.display = 'none';
-    document.getElementById('invalidBox').style.display = 'block';
-    return;
-  }
-
-  // Session is valid — show the form
-  sessionReady = true;
-  document.getElementById('formSection').style.display = 'flex';
-  document.getElementById('invalidBox').style.display = 'none';
+function showLoading(msg) {
+  $('loadingBox').style.display = 'flex';
+  if (msg) $('loadingBox').querySelector('span').textContent = msg;
+  $('invalidBox').style.display = 'none';
+  $('formSection').style.display = 'none';
+  $('loginLink').style.display = 'none';
 }
 
-// Run on page load
-initRecovery();
+function showInvalid(msg) {
+  $('loadingBox').style.display = 'none';
+  $('invalidBox').style.display = 'block';
+  $('formSection').style.display = 'none';
+  $('loginLink').style.display = 'none';
+  if (msg) $('invalidMsg').textContent = msg;
+}
 
-// ── Password strength checker ─────────────────────────────────
+function showForm() {
+  $('loadingBox').style.display = 'none';
+  $('invalidBox').style.display = 'none';
+  $('formSection').style.display = 'flex';
+  $('loginLink').style.display = 'block';
+}
+
+// ── Shared verification — the ONLY thing allowed to reveal the password
+// form. Runs for BOTH entry paths (fresh invite hash and resumed session)
+// so a hash claiming type=invite is never, by itself, sufficient to show
+// the form — it's just what gets us an active session; this function is
+// what actually authorizes displaying it. ──────────────────────────────
+async function verifyAndProceed() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    showInvalid('Aucune invitation active. Demandez à un administrateur de vous inviter à nouveau.');
+    return;
+  }
+
+  const { data: adminRow, error: adminErr } = await sb
+    .from('admin_users')
+    .select('id')
+    .eq('auth_user_id', session.user.id)
+    .maybeSingle();
+
+  if (adminErr || !adminRow) {
+    // Not a genuine admin session — fail closed. This also covers the
+    // case of a doctor/patient session somehow landing on this page.
+    await sb.auth.signOut();
+    window.location.replace('admin-login.html');
+    return;
+  }
+
+  if (session.user.app_metadata?.onboarded === false) {
+    // Genuine admin, onboarding genuinely incomplete — show the form.
+    sessionReady = true;
+    showForm();
+    return;
+  }
+
+  // Already onboarded — nothing to do here; send them where they belong.
+  window.location.replace('admin-dashboard.html');
+}
+
+// ── Entry point: resolve which path applies ─────────────────────────────
+async function init() {
+  showLoading();
+  const hash = window.location.hash;
+
+  if (hash && hash.includes('type=invite')) {
+    // Path A — fresh invite link
+    const params = new URLSearchParams(hash.substring(1));
+    const accessToken  = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    if (!accessToken) {
+      showInvalid();
+      return;
+    }
+
+    const { data, error } = await sb.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken || ''
+    });
+
+    if (error || !data.session) {
+      showInvalid();
+      return;
+    }
+
+    // Clear the token out of the URL bar now that it's been consumed.
+    history.replaceState(null, '', window.location.pathname);
+
+    // Do NOT trust type=invite alone to authorize the form — route
+    // through the same server-verified check as the resumed-session path.
+    await verifyAndProceed();
+    return;
+  }
+
+  // Path B — no usable invite hash; check for an already-active session
+  // (e.g. redirected here from admin-login.html or admin-dashboard.html
+  // because app_metadata.onboarded is still false).
+  await verifyAndProceed();
+}
+
+init();
+
+// ── Password strength checker (same logic as reset-password.html) ──────
 function checkStrength(pw) {
   let score = 0;
   if (pw.length >= 8)  score++;
@@ -311,7 +372,6 @@ function checkStrength(pw) {
   strengthLabel.style.color = level.color;
 }
 
-// ── Validation ────────────────────────────────────────────────
 function validate() {
   const pw  = newPassInput.value;
   const cpw = confirmPassInput.value;
@@ -338,22 +398,20 @@ confirmPassInput.addEventListener('input', () => {
   errorBox.style.display = 'none';
 });
 
-// ── Toggle password visibility ────────────────────────────────
 function toggleVisibility(inputEl, btnEl) {
   const isHidden = inputEl.type === 'password';
   inputEl.type = isHidden ? 'text' : 'password';
   const icon = btnEl.querySelector('i');
   icon.className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
 }
-document.getElementById('toggleNew').addEventListener('click', () =>
-  toggleVisibility(newPassInput, document.getElementById('toggleNew')));
-document.getElementById('toggleConfirm').addEventListener('click', () =>
-  toggleVisibility(confirmPassInput, document.getElementById('toggleConfirm')));
+$('toggleNew').addEventListener('click', () => toggleVisibility(newPassInput, $('toggleNew')));
+$('toggleConfirm').addEventListener('click', () => toggleVisibility(confirmPassInput, $('toggleConfirm')));
 
-// ── Update password ───────────────────────────────────────────
-async function updatePassword() {
+// ── Accept invite: set password, then flip app_metadata.onboarded via
+// the complete_invite Edge Function action (server-side write only). ────
+async function acceptInvite() {
   if (!sessionReady) {
-    errorMsg.textContent = 'Session invalide. Veuillez refaire la demande de réinitialisation.';
+    errorMsg.textContent = 'Session invalide. Demandez une nouvelle invitation.';
     errorBox.style.display = 'block';
     return;
   }
@@ -366,54 +424,48 @@ async function updatePassword() {
   }
 
   submitBtn.disabled = true;
-  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise à jour…';
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Configuration…';
 
-  const { error } = await sb.auth.updateUser({ password: pw });
-
-  if (error) {
-    errorMsg.textContent = 'Erreur: ' + error.message;
+  const { error: pwErr } = await sb.auth.updateUser({ password: pw });
+  if (pwErr) {
+    errorMsg.textContent = 'Erreur: ' + pwErr.message;
     errorBox.style.display = 'block';
     submitBtn.disabled = false;
-    submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Mettre à jour le mot de passe';
+    submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Activer mon compte';
     return;
   }
 
-  // Detect account type (admin / doctor / patient) to redirect correctly.
-  // Admin is checked first — an account should only ever match one of
-  // these tables in practice. Doctor/patient behavior below is otherwise
-  // byte-identical to before; this only adds a new branch ahead of it.
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user) {
-    const { data: adminRow } = await sb
-      .from('admin_users')
-      .select('id')
-      .eq('auth_user_id', session.user.id)
-      .maybeSingle();
-    if (adminRow) {
-      document.getElementById('loginRedirectBtn').href = 'admin-login.html';
-      document.getElementById('loginRedirectBtn').innerHTML =
-        '<i class="fas fa-arrow-right-to-bracket"></i> Connexion Admin';
-    } else {
-      const { data: doctor } = await sb
-        .from('doctors')
-        .select('id')
-        .eq('auth_user_id', session.user.id)
-        .single();
-      if (doctor) {
-        document.getElementById('loginRedirectBtn').href = 'doctor-login.html';
-        document.getElementById('loginRedirectBtn').innerHTML =
-          '<i class="fas fa-arrow-right-to-bracket"></i> Connexion Médecin';
-      }
-    }
+  const { data: completeData, error: completeErr } = await sb.functions.invoke('admin-management', {
+    body: { action: 'complete_invite' }
+  });
+
+  if (completeErr || completeData?.error) {
+    // Password IS already set at this point. Don't strand the admin —
+    // they can sign in normally; admin-login.html's own onboarded check
+    // will route them straight back here (Path B) to retry this step,
+    // since the flag was never flipped.
+    console.error('[admin-accept-invite] complete_invite failed:', completeErr || completeData?.error);
+    errorMsg.textContent = 'Mot de passe défini, mais la finalisation a échoué. Reconnectez-vous pour réessayer.';
+    errorBox.style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Activer mon compte';
+    return;
   }
 
-  // Sign out so they log in fresh with new password
-  await sb.auth.signOut();
+  // Force the locally cached session to refresh so its JWT reflects the
+  // updated app_metadata immediately — getUser() alone would confirm
+  // server-side state but NOT update what getSession() returns elsewhere
+  // in the app (e.g. admin-dashboard.html's guard), which could otherwise
+  // bounce the admin right back here in a loop despite onboarding being
+  // genuinely complete server-side.
+  await sb.auth.refreshSession();
 
-  // Show success
-  document.getElementById('formSection').style.display = 'none';
-  document.getElementById('successState').classList.add('show');
-  document.getElementById('homeLink').style.display = 'none';
+  $('formSection').style.display = 'none';
+  $('loginLink').style.display = 'none';
+  $('successState').classList.add('show');
+
+  await new Promise(r => setTimeout(r, 900));
+  window.location.href = 'admin-dashboard.html';
 }
 </script>
 </body>

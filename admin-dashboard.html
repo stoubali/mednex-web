@@ -1455,6 +1455,20 @@
       return;
     }
 
+    // Defense in depth (Finding #3): even though admin-login.html already
+    // gates on this before setting the sessionStorage flag, that flag is
+    // client-side and not itself a security boundary — a tampered/stale
+    // session could reach here directly. Preserve the session and redirect
+    // to admin-accept-invite.html rather than signing out, so onboarding
+    // can be resumed. Block only on an explicit false — any other value
+    // (true, or absent for every pre-existing admin) is treated as
+    // onboarded, so this can never lock out an admin created before this
+    // feature existed.
+    if (session.user.app_metadata?.onboarded === false) {
+      window.location.replace('admin-accept-invite.html');
+      return;
+    }
+
     window.adminFullName = admin.full_name;
     window.__adminId = admin.id;
     window.__isSuperAdmin = !!admin.is_super_admin;
