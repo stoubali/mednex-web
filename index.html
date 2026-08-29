@@ -248,16 +248,35 @@
       border-top: 1px solid rgba(255,255,255,0.1);
       flex-wrap: wrap;
     }
-    .hero-stat .num {
-      font-size: clamp(1.6rem, 3vw, 2.2rem);
-      font-weight: 800;
-      letter-spacing: -1px;
+    .hero-value-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: 220px;
+      text-align: left;
+    }
+    .hero-value-item .hero-value-icon {
+      width: 34px;
+      height: 34px;
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+    }
+    .hero-value-item .title {
+      font-size: 0.82rem;
+      font-weight: 700;
       display: block;
     }
-    .hero-stat .label {
-      font-size: 0.75rem;
+    .hero-value-item .label {
+      font-size: 0.72rem;
       opacity: 0.65;
       font-weight: 500;
+      line-height: 1.3;
     }
 
     /* ---------- PREVIEW SECTION ---------- */
@@ -605,17 +624,20 @@
       transition: all var(--transition);
     }
     .testimonial-card:hover { box-shadow: var(--shadow-hover); }
-    .stars { color: #F59E0B; font-size: 0.8rem; margin-bottom: 10px; letter-spacing: 1px; }
-    .testimonial-card p { font-size: 0.85rem; line-height: 1.6; color: #2A4A3E; margin-bottom: 14px; }
-    .testimonial-author { display: flex; align-items: center; gap: 10px; }
-    .author-avatar {
-      width: 36px; height: 36px; border-radius: 60px;
-      background: var(--light-green); color: var(--primary);
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 0.85rem;
+    .testimonial-card .value-icon {
+      width: 44px;
+      height: 44px;
+      background: var(--light-green);
+      color: var(--primary);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      margin-bottom: 14px;
     }
-    .testimonial-author .name { font-weight: 600; font-size: 0.82rem; }
-    .testimonial-author .role { font-size: 0.7rem; color: #5A6F66; }
+    .testimonial-card h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
+    .testimonial-card p { font-size: 0.85rem; line-height: 1.6; color: #2A4A3E; }
 
     /* Contact */
     .contact-section { padding: 60px 0; background: var(--bg); }
@@ -834,10 +856,10 @@
       <a href="doctor-login.html" class="btn-outline btn-lg"><i class="fas fa-user-md"></i> Espace Médecin</a>
     </div>
     <div class="hero-stats">
-      <div class="hero-stat"><span class="num">2 400+</span><span class="label">Rendez-vous pris</span></div>
-      <div class="hero-stat"><span class="num">180+</span><span class="label">Médecins actifs</span></div>
-      <div class="hero-stat"><span class="num">98%</span><span class="label">Satisfaction patients</span></div>
-      <div class="hero-stat"><span class="num">< 30s</span><span class="label">Pour réserver</span></div>
+      <div class="hero-value-item"><div class="hero-value-icon"><i class="fas fa-calendar-check"></i></div><div><span class="title">Réservation en ligne</span><span class="label">Prenez rendez-vous en quelques clics</span></div></div>
+      <div class="hero-value-item"><div class="hero-value-icon"><i class="fas fa-user-md"></i></div><div><span class="title">Médecins par spécialité</span><span class="label">Trouvez le médecin qu'il vous faut</span></div></div>
+      <div class="hero-value-item"><div class="hero-value-icon"><i class="fas fa-prescription"></i></div><div><span class="title">Ordonnances numériques</span><span class="label">Recevez vos prescriptions en ligne</span></div></div>
+      <div class="hero-value-item"><div class="hero-value-icon"><i class="fas fa-lock"></i></div><div><span class="title">Données confidentielles</span><span class="label">Vos informations médicales protégées</span></div></div>
     </div>
   </section>
 
@@ -850,7 +872,7 @@
         <div class="preview-dot"></div>
         <div class="preview-url">
           <i class="fas fa-lock" style="font-size:0.6rem;color:var(--success);"></i>
-          mednex.app · Tableau de bord Médecin
+          mednex.app · Aperçu de l'interface (démonstration)
         </div>
       </div>
       <div class="mini-kpi-row">
@@ -862,20 +884,20 @@
       <div class="mini-row">
         <div class="mini-timeline">
           <div class="mini-timeline-label"><i class="fas fa-hourglass-half"></i> Aujourd'hui</div>
-          <div class="mini-slot"><span class="time">08:00</span><span class="name">Amine Benjelloun</span><div class="dot"></div></div>
-          <div class="mini-slot"><span class="time">08:15</span><span class="name">Fatima Errahi</span><div class="dot"></div></div>
+          <div class="mini-slot"><span class="time">08:00</span><span class="name">Patient A</span><div class="dot"></div></div>
+          <div class="mini-slot"><span class="time">08:15</span><span class="name">Patient B</span><div class="dot"></div></div>
           <div class="mini-slot free"><span class="time">08:30</span><span class="name">Libre</span><div class="dot"></div></div>
-          <div class="mini-slot"><span class="time">08:45</span><span class="name">Karim El Idrissi</span><div class="dot"></div></div>
+          <div class="mini-slot"><span class="time">08:45</span><span class="name">Patient C</span><div class="dot"></div></div>
           <div class="mini-slot free"><span class="time">09:00</span><span class="name">Libre</span><div class="dot"></div></div>
         </div>
         <div class="mini-table">
           <div class="mini-table-label"><i class="fas fa-user-md"></i> Patients du jour</div>
           <div class="mini-tr header"><span>Patient</span><span>Heure</span><span>Statut</span></div>
-          <div class="mini-tr"><span><strong>Amine B.</strong></span><span>08:00</span><span><span class="mini-badge confirmed">Confirmé</span></span></div>
-          <div class="mini-tr"><span><strong>Fatima E.</strong></span><span>08:15</span><span><span class="mini-badge confirmed">Confirmé</span></span></div>
-          <div class="mini-tr"><span><strong>Karim I.</strong></span><span>08:45</span><span><span class="mini-badge pending">En attente</span></span></div>
-          <div class="mini-tr"><span><strong>Sara L.</strong></span><span>09:15</span><span><span class="mini-badge confirmed">Confirmé</span></span></div>
-          <div class="mini-tr"><span><strong>Omar R.</strong></span><span>09:30</span><span><span class="mini-badge pending">En attente</span></span></div>
+          <div class="mini-tr"><span><strong>Patient A</strong></span><span>08:00</span><span><span class="mini-badge confirmed">Confirmé</span></span></div>
+          <div class="mini-tr"><span><strong>Patient B</strong></span><span>08:15</span><span><span class="mini-badge confirmed">Confirmé</span></span></div>
+          <div class="mini-tr"><span><strong>Patient C</strong></span><span>08:45</span><span><span class="mini-badge pending">En attente</span></span></div>
+          <div class="mini-tr"><span><strong>Patient D</strong></span><span>09:15</span><span><span class="mini-badge confirmed">Confirmé</span></span></div>
+          <div class="mini-tr"><span><strong>Patient E</strong></span><span>09:30</span><span><span class="mini-badge pending">En attente</span></span></div>
         </div>
       </div>
     </div>
@@ -922,23 +944,23 @@
       <div class="fade-up text-center">
         <div class="section-tag"><i class="fas fa-stethoscope"></i> Spécialités</div>
         <h2 class="section-title">Toutes les spécialités disponibles</h2>
-        <p class="section-sub" style="margin:0 auto;">Plus de 180 médecins dans 14 spécialités vous attendent sur MedNex pour des consultations rapides et personnalisées.</p>
+        <p class="section-sub" style="margin:0 auto;">Recherchez un médecin par spécialité et prenez rendez-vous directement en ligne, où que vous soyez au Maroc.</p>
       </div>
       <div class="spec-grid">
-        <a href="doctors.html?specialty=Cardiologie" class="spec-card fade-up"><div class="spec-icon"><i class="fas fa-heartbeat"></i></div><h5>Cardiologie</h5><span class="spec-count">24 médecins</span></a>
-        <a href="doctors.html?specialty=Neurologie" class="spec-card fade-up" style="transition-delay:0.05s"><div class="spec-icon"><i class="fas fa-brain"></i></div><h5>Neurologie</h5><span class="spec-count">12 médecins</span></a>
-        <a href="doctors.html?specialty=Pédiatrie" class="spec-card fade-up" style="transition-delay:0.1s"><div class="spec-icon"><i class="fas fa-child"></i></div><h5>Pédiatrie</h5><span class="spec-count">18 médecins</span></a>
-        <a href="doctors.html?specialty=Ophtalmologie" class="spec-card fade-up" style="transition-delay:0.15s"><div class="spec-icon"><i class="fas fa-eye"></i></div><h5>Ophtalmologie</h5><span class="spec-count">9 médecins</span></a>
-        <a href="doctors.html?specialty=Dentisterie" class="spec-card fade-up" style="transition-delay:0.2s"><div class="spec-icon"><i class="fas fa-tooth"></i></div><h5>Dentisterie</h5><span class="spec-count">21 médecins</span></a>
-        <a href="doctors.html?specialty=Orthopédie" class="spec-card fade-up" style="transition-delay:0.25s"><div class="spec-icon"><i class="fas fa-bone"></i></div><h5>Orthopédie</h5><span class="spec-count">11 médecins</span></a>
-        <a href="doctors.html?specialty=Pneumologie" class="spec-card fade-up" style="transition-delay:0.3s"><div class="spec-icon"><i class="fas fa-lungs"></i></div><h5>Pneumologie</h5><span class="spec-count">8 médecins</span></a>
-        <a href="doctors.html?specialty=Gynécologie" class="spec-card fade-up" style="transition-delay:0.35s"><div class="spec-icon"><i class="fas fa-venus"></i></div><h5>Gynécologie</h5><span class="spec-count">16 médecins</span></a>
-        <a href="doctors.html?specialty=Dermatologie" class="spec-card fade-up" style="transition-delay:0.4s"><div class="spec-icon"><i class="fas fa-microscope"></i></div><h5>Dermatologie</h5><span class="spec-count">13 médecins</span></a>
-        <a href="doctors.html?specialty=Médecine%20générale" class="spec-card fade-up" style="transition-delay:0.45s"><div class="spec-icon"><i class="fas fa-user-md"></i></div><h5>Médecine générale</h5><span class="spec-count">32 médecins</span></a>
-        <a href="doctors.html?specialty=Urologie" class="spec-card fade-up" style="transition-delay:0.5s"><div class="spec-icon"><i class="fas fa-kidneys"></i></div><h5>Urologie</h5><span class="spec-count">7 médecins</span></a>
-        <a href="doctors.html?specialty=Gastro-entérologie" class="spec-card fade-up" style="transition-delay:0.55s"><div class="spec-icon"><i class="fas fa-stomach"></i></div><h5>Gastro-entérologie</h5><span class="spec-count">9 médecins</span></a>
-        <a href="doctors.html?specialty=ORL" class="spec-card fade-up" style="transition-delay:0.6s"><div class="spec-icon"><i class="fas fa-head-side-mask"></i></div><h5>ORL</h5><span class="spec-count">10 médecins</span></a>
-        <a href="doctors.html?specialty=Psychiatrie" class="spec-card fade-up" style="transition-delay:0.65s"><div class="spec-icon"><i class="fas fa-spa"></i></div><h5>Psychiatrie</h5><span class="spec-count">10 médecins</span></a>
+        <a href="doctors.html?specialty=Cardiologie" class="spec-card fade-up"><div class="spec-icon"><i class="fas fa-heartbeat"></i></div><h5>Cardiologie</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=Neurologie" class="spec-card fade-up" style="transition-delay:0.05s"><div class="spec-icon"><i class="fas fa-brain"></i></div><h5>Neurologie</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=Pédiatrie" class="spec-card fade-up" style="transition-delay:0.1s"><div class="spec-icon"><i class="fas fa-child"></i></div><h5>Pédiatrie</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=Ophtalmologie" class="spec-card fade-up" style="transition-delay:0.15s"><div class="spec-icon"><i class="fas fa-eye"></i></div><h5>Ophtalmologie</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=Dentisterie" class="spec-card fade-up" style="transition-delay:0.2s"><div class="spec-icon"><i class="fas fa-tooth"></i></div><h5>Dentisterie</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=Orthopédie" class="spec-card fade-up" style="transition-delay:0.25s"><div class="spec-icon"><i class="fas fa-bone"></i></div><h5>Orthopédie</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=Pneumologie" class="spec-card fade-up" style="transition-delay:0.3s"><div class="spec-icon"><i class="fas fa-lungs"></i></div><h5>Pneumologie</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=Gynécologie" class="spec-card fade-up" style="transition-delay:0.35s"><div class="spec-icon"><i class="fas fa-venus"></i></div><h5>Gynécologie</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=Dermatologie" class="spec-card fade-up" style="transition-delay:0.4s"><div class="spec-icon"><i class="fas fa-microscope"></i></div><h5>Dermatologie</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=Médecine%20générale" class="spec-card fade-up" style="transition-delay:0.45s"><div class="spec-icon"><i class="fas fa-user-md"></i></div><h5>Médecine générale</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=Urologie" class="spec-card fade-up" style="transition-delay:0.5s"><div class="spec-icon"><i class="fas fa-kidneys"></i></div><h5>Urologie</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=Gastro-entérologie" class="spec-card fade-up" style="transition-delay:0.55s"><div class="spec-icon"><i class="fas fa-stomach"></i></div><h5>Gastro-entérologie</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=ORL" class="spec-card fade-up" style="transition-delay:0.6s"><div class="spec-icon"><i class="fas fa-head-side-mask"></i></div><h5>ORL</h5><span class="spec-count">Voir les médecins →</span></a>
+        <a href="doctors.html?specialty=Psychiatrie" class="spec-card fade-up" style="transition-delay:0.65s"><div class="spec-icon"><i class="fas fa-spa"></i></div><h5>Psychiatrie</h5><span class="spec-count">Voir les médecins →</span></a>
       </div>
       <div class="spec-cta fade-up"><a href="doctors.html" class="btn-primary btn-lg"><i class="fas fa-search"></i> Explorer tous les médecins</a></div>
     </div>
@@ -956,8 +978,8 @@
         <div class="for-card patient-card fade-up">
           <div class="for-badge"><i class="fas fa-user"></i> Pour les patients</div>
           <h3>Prenez soin de vous,<br>sans effort</h3>
-          <p>MedNex vous donne une vue complète de votre santé : rendez-vous à venir, ordonnances actives, dossiers médicaux et accès à plus de 180 médecins.</p>
-          <ul class="for-perks"><li><div class="perk-check"><i class="fas fa-check"></i></div>Réservation en moins de 30 secondes</li><li><div class="perk-check"><i class="fas fa-check"></i></div>Rappels de rendez-vous automatiques</li><li><div class="perk-check"><i class="fas fa-check"></i></div>Ordonnances téléchargeables en PDF</li><li><div class="perk-check"><i class="fas fa-check"></i></div>Historique médical complet</li></ul>
+          <p>MedNex vous donne une vue complète de votre santé : rendez-vous à venir, ordonnances actives, dossiers médicaux et accès à des médecins de toutes spécialités.</p>
+          <ul class="for-perks"><li><div class="perk-check"><i class="fas fa-check"></i></div>Réservation rapide et sans appel téléphonique</li><li><div class="perk-check"><i class="fas fa-check"></i></div>Rappels de rendez-vous automatiques</li><li><div class="perk-check"><i class="fas fa-check"></i></div>Ordonnances téléchargeables en PDF</li><li><div class="perk-check"><i class="fas fa-check"></i></div>Historique médical complet</li></ul>
           <a href="patient-register.html" class="btn-primary"><i class="fas fa-calendar-plus"></i> Créer mon compte patient</a>
         </div>
         <div class="for-card doctor-card fade-up" style="transition-delay:0.12s">
@@ -975,13 +997,13 @@
   <section class="testimonials-section">
     <div class="testimonials-inner">
       <div class="fade-up text-center">
-        <div class="section-tag"><i class="fas fa-comment-medical"></i> Avis</div>
-        <h2 class="section-title">Ils font confiance à MedNex</h2>
+        <div class="section-tag"><i class="fas fa-comment-medical"></i> Pourquoi MedNex</div>
+        <h2 class="section-title">Pourquoi choisir MedNex</h2>
       </div>
       <div class="testimonials-grid">
-        <div class="testimonial-card fade-up"><div class="stars">★★★★★</div><p>« J'ai pris mon premier rendez-vous en moins d'une minute. L'interface est tellement intuitive que même ma mère l'utilise sans problème. »</p><div class="testimonial-author"><div class="author-avatar">L</div><div><div class="name">Leila M.</div><div class="role">Patiente · Casablanca</div></div></div></div>
-        <div class="testimonial-card fade-up" style="transition-delay:0.1s"><div class="stars">★★★★★</div><p>« Le tableau de bord m'offre une vue claire sur ma journée dès le matin. Je perds moins de temps en administration et plus en soins. »</p><div class="testimonial-author"><div class="author-avatar">K</div><div><div class="name">Dr. Khalil R.</div><div class="role">Cardiologue · Rabat</div></div></div></div>
-        <div class="testimonial-card fade-up" style="transition-delay:0.2s"><div class="stars">★★★★★</div><p>« Les ordonnances numériques changent tout. Mes patients reçoivent leurs prescriptions instantanément sans risque de perte. »</p><div class="testimonial-author"><div class="author-avatar">S</div><div><div class="name">Dr. Sara B.</div><div class="role">Médecin généraliste · Fès</div></div></div></div>
+        <div class="testimonial-card fade-up"><div class="value-icon"><i class="fas fa-flag"></i></div><h4>Pensé pour le Maroc</h4><p>Une plateforme en français, adaptée aux patients et médecins marocains.</p></div>
+        <div class="testimonial-card fade-up" style="transition-delay:0.1s"><div class="value-icon"><i class="fas fa-shield-alt"></i></div><h4>Confidentialité garantie</h4><p>Vos données médicales sont protégées et accessibles uniquement par vous et votre médecin.</p></div>
+        <div class="testimonial-card fade-up" style="transition-delay:0.2s"><div class="value-icon"><i class="fas fa-bolt"></i></div><h4>Sans complications</h4><p>Réservez, gérez et suivez vos rendez-vous en quelques clics, sans paperasse.</p></div>
       </div>
     </div>
   </section>
@@ -1099,23 +1121,6 @@
       });
     }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
     document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
-
-    // Animate stats
-    function animateNum(el, target) {
-      const cleaned = target.replace(/[^0-9]/g, '');
-      if (!cleaned) return;
-      let cur = 0;
-      const num = parseInt(cleaned);
-      const step = Math.max(1, Math.floor(num / 50));
-      const iv = setInterval(() => {
-        cur += step;
-        if (cur >= num) { cur = num; clearInterval(iv); }
-        el.textContent = target.replace(/[0-9]+/, cur.toLocaleString('fr-FR'));
-      }, 25);
-    }
-    setTimeout(() => {
-      document.querySelectorAll('.hero-stat .num').forEach(el => animateNum(el, el.textContent));
-    }, 400);
 
     // Contact form
     const CONTACT_EMAIL_RE = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
