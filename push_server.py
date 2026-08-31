@@ -37,6 +37,21 @@ SETUP
      - 01_notifications_schema.sql  → the url in create_notification()'s net.http_post
      - notifications.js             → PUSH_SERVER constant
 ──────────────────────────────────────────────────────────────────
+
+──────────────────────────────────────────────────────────────────
+Finding C changes (MedNex notification-reliability investigation):
+  - Layer 1: the push_subscriptions lookup in send_push() is now
+    wrapped in its own try/except. A failure there (e.g. the
+    httpx/httpcore read errors observed under rapid successive
+    requests) now returns a clean, structured 503 response instead
+    of an unhandled 500. No retry logic. No change to webpush
+    behavior. No change to /register-push or /unregister-push.
+  - Layer 4 (idempotency groundwork only): send_push() now reads an
+    optional `notification_id` field from the request body (sent by
+    the Supabase side as of this same change) and includes it in log
+    lines for correlation. It is not used for deduplication, Topic,
+    or tag yet — that is intentionally deferred.
+──────────────────────────────────────────────────────────────────
 """
 
 import os
@@ -70,7 +85,7 @@ def check_secret():
 
 
 @app.route("/health", methods=["GET"])
-def health():
+def health_check():
     return jsonify({"status": "healthy", "service": "MedNex Push Server"})
 
 
@@ -128,18 +143,41 @@ def send_push():
     title = data.get("title", "MedNex")
     message = data.get("message", "")
     link_url = data.get("link_url") or "/"
+    # Layer 4 (idempotency groundwork): optional, not yet used for
+    # dedup/Topic/tag — only for log correlation with
+    # notification_delivery_attempts / net._http_response on the
+    # Supabase side.
+    notification_id = data.get("notification_id")
 
     if not recipient_type or not recipient_id:
         return jsonify({"error": "recipient_type and recipient_id required"}), 400
 
-    subs = (
-        sb.table("push_subscriptions")
-        .select("*")
-        .eq("recipient_type", recipient_type)
-        .eq("recipient_id", recipient_id)
-        .execute()
-        .data
-    )
+    # Layer 1: narrow try/except around the outbound Supabase lookup
+    # only. This is the exact call site identified in Finding C
+    # evidence (push_server.py, previously unhandled) where an
+    # httpx/httpcore read error under rapid successive requests
+    # produced an uncontrolled 500 before any webpush was attempted.
+    # No retry is added here — only a controlled, structured failure
+    # response so the caller (and our own logs) can distinguish this
+    # from a genuine "no subscriptions" or "push failed" case.
+    try:
+        subs = (
+            sb.table("push_subscriptions")
+            .select("*")
+            .eq("recipient_type", recipient_type)
+            .eq("recipient_id", recipient_id)
+            .execute()
+            .data
+        )
+    except Exception as e:
+        log.error(
+            "send_push: subscription lookup failed (notification_id=%s, recipient_type=%s, recipient_id=%s): %s",
+            notification_id, recipient_type, recipient_id, e,
+        )
+        return jsonify({
+            "error": "subscription_lookup_failed",
+            "notification_id": notification_id,
+        }), 503
 
     payload = json.dumps({"title": title, "body": message, "url": link_url})
     sent, failed = 0, 0
@@ -164,7 +202,12 @@ def send_push():
                 # Subscription is dead — clean it up
                 sb.table("push_subscriptions").delete().eq("endpoint", s["endpoint"]).execute()
 
-    return jsonify({"success": True, "sent": sent, "failed": failed})
+    log.info(
+        "send_push: notification_id=%s recipient_type=%s recipient_id=%s sent=%d failed=%d",
+        notification_id, recipient_type, recipient_id, sent, failed,
+    )
+
+    return jsonify({"success": True, "sent": sent, "failed": failed, "notification_id": notification_id})
 
 
 if __name__ == "__main__":
