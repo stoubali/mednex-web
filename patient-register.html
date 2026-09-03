@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Inscription Patient - MedNex</title>
+<title>Inscription Patient - Jureqa</title>
 <link rel="icon" href="/chismya.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -41,21 +41,21 @@ body{ font-family:'Inter','Segoe UI',sans-serif; background:linear-gradient(135d
 <body>
 <div class="register-card">
   <div class="register-header">
-    <img src="/image-removebg-preview.png" alt="MedNex" class="logo"
-      onerror="this.src='https://placehold.co/400x120/0B3D2E/white?text=MedNex'">
+    <img src="/image-removebg-preview.png" alt="Jureqa" class="logo"
+      onerror="this.src='https://placehold.co/400x120/0B3D2E/white?text=Jureqa'">
     <h2>Inscription Patient</h2>
-    <p>Créez votre compte MedNex pour réserver<br>facilement vos consultations médicales.</p>
+    <p>Créez votre compte Jureqa pour réserver<br>facilement vos consultations médicales.</p>
   </div>
 
   <div id="successBox" class="success-box"><i class="fas fa-check-circle"></i> <span></span></div>
   <div id="errorBox"   class="error-box"><i class="fas fa-exclamation-triangle"></i> <span></span></div>
   <div id="closedBox" class="error-box" style="display:none;background:#fff7ed;color:#c2410c;border-left-color:#f97316;">
-    <i class="fas fa-lock"></i> Les inscriptions patients sont temporairement fermées. Réessayez plus tard ou contactez l'équipe MedNex.
+    <i class="fas fa-lock"></i> Les inscriptions patients sont temporairement fermées. Réessayez plus tard ou contactez l'équipe Jureqa.
   </div>
 
   <form class="register-form" id="registerForm">
     <div class="input-group"><label><i class="fas fa-user"></i> Nom complet</label><input name="full_name" type="text" placeholder="Entrez votre nom complet" required></div>
-    <div class="input-group"><label><i class="fas fa-envelope"></i> Adresse Email</label><input name="email" type="email" placeholder="exemple@mednex.com" required autocomplete="email"></div>
+    <div class="input-group"><label><i class="fas fa-envelope"></i> Adresse Email</label><input name="email" type="email" placeholder="exemple@jureqa.com" required autocomplete="email"></div>
     <div class="input-group"><label><i class="fas fa-phone-alt"></i> Téléphone</label><input name="phone" type="tel" placeholder="+212 6XX XXX XXX" required></div>
     <div class="input-group"><label><i class="fas fa-calendar-alt"></i> Date de naissance</label><input name="birth_date" type="date" required></div>
     <div class="input-group"><label><i class="fas fa-venus-mars"></i> Sexe</label>
@@ -170,7 +170,7 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    showSuccess("Compte créé ✅ Bienvenue sur MedNex ! Vous pouvez maintenant vous connecter.");
+    showSuccess("Compte créé ✅ Bienvenue sur Jureqa ! Vous pouvez maintenant vous connecter.");
     form.reset();
     // Don't redirect — let them read the message
 
