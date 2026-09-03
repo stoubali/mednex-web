@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Inscription Médecin - MedNex</title>
+<title>Inscription Médecin - Jureqa</title>
 <link rel="icon" href="/chismya.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -43,10 +43,10 @@ body{ font-family:'Inter','Segoe UI',sans-serif; background:linear-gradient(135d
 <body>
 <div class="register-card">
   <div class="register-header">
-    <img src="/image-removebg-preview.png" alt="MedNex" class="logo"
-      onerror="this.src='https://placehold.co/400x120/0B3D2E/white?text=MedNex'">
+    <img src="/image-removebg-preview.png" alt="Jureqa" class="logo"
+      onerror="this.src='https://placehold.co/400x120/0B3D2E/white?text=Jureqa'">
     <h2>Inscription Médecin</h2>
-    <p>Rejoignez MedNex et développez<br>votre présence médicale en ligne.</p>
+    <p>Rejoignez Jureqa et développez<br>votre présence médicale en ligne.</p>
   </div>
 
   <div id="successBox" class="success-box"><i class="fas fa-check-circle"></i> <span></span></div>
@@ -54,7 +54,7 @@ body{ font-family:'Inter','Segoe UI',sans-serif; background:linear-gradient(135d
 
   <form class="register-form" id="registerForm">
     <div class="input-group"><label><i class="fas fa-user"></i> Nom complet</label><input name="full_name" type="text" placeholder="Dr. Nom complet" required></div>
-    <div class="input-group"><label><i class="fas fa-envelope"></i> Adresse Email</label><input name="email" type="email" placeholder="exemple@mednex.com" required autocomplete="email"></div>
+    <div class="input-group"><label><i class="fas fa-envelope"></i> Adresse Email</label><input name="email" type="email" placeholder="exemple@jureqa.com" required autocomplete="email"></div>
     <div class="input-group"><label><i class="fas fa-phone-alt"></i> Téléphone</label><input name="phone" type="tel" placeholder="+212 6XX XXX XXX"></div>
     <div class="input-group"><label><i class="fas fa-stethoscope"></i> Spécialité</label><input name="specialty" type="text" placeholder="Ex: Cardiologue" required></div>
     <div class="input-group"><label><i class="fas fa-id-card"></i> Numéro de licence</label><input name="license_number" type="text" placeholder="Votre numéro de licence" required></div>
@@ -62,7 +62,7 @@ body{ font-family:'Inter','Segoe UI',sans-serif; background:linear-gradient(135d
     <div class="input-group"><label><i class="fas fa-map-marker-alt"></i> Adresse du cabinet</label><input name="clinic_address" type="text" placeholder="Adresse du cabinet médical"></div>
     <div class="input-group"><label><i class="fas fa-align-left"></i> Description</label><textarea name="description" placeholder="Présentez votre expérience et vos services..."></textarea></div>
     <div class="input-group"><label><i class="fas fa-lock"></i> Mot de passe</label><input name="password" type="password" placeholder="Minimum 8 caractères" required autocomplete="new-password"></div>
-    <div class="verification-note"><i class="fas fa-shield-check"></i> Votre licence médicale sera vérifiée par l'équipe MedNex avant validation complète de votre compte.</div>
+    <div class="verification-note"><i class="fas fa-shield-check"></i> Votre licence médicale sera vérifiée par l'équipe Jureqa avant validation complète de votre compte.</div>
     <button type="submit" id="submitBtn"><i class="fas fa-arrow-right-to-bracket"></i> Créer un Compte</button>
   </form>
 
@@ -146,7 +146,7 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    showSuccess("Compte créé ✅ Votre demande a été soumise. L'équipe MedNex examinera votre licence et activera votre compte sous peu.");
+    showSuccess("Compte créé ✅ Votre demande a été soumise. L'équipe Jureqa examinera votre licence et activera votre compte sous peu.");
     form.reset();
     // Don't redirect — let them read the message
 
