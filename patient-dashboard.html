@@ -207,6 +207,11 @@
             <label style="font-weight:500;font-size:0.8rem;color:#5A6F66;">Créneau disponible</label>
             <div class="slot-grid" id="slotGrid"><div style="font-size:0.8rem;color:#5A6F66;padding:8px;">Sélectionnez un médecin et une date</div></div>
           </div>
+          <div>
+            <label style="font-weight:500;font-size:0.8rem;color:#5A6F66;">Motif de consultation (optionnel)</label>
+            <textarea id="bookingNotes" maxlength="300" placeholder="Décrivez brièvement le motif de votre visite (optionnel)…" style="width:100%;min-height:60px;padding:10px 14px;border-radius:16px;border:1px solid var(--border);font-family:inherit;font-size:0.85rem;outline:none;resize:vertical;margin-top:4px;"></textarea>
+            <div id="bookingNotesCount" style="font-size:0.7rem;color:#8A9E96;text-align:right;margin-top:2px;">0/300</div>
+          </div>
           <button class="btn-primary" id="bookBtn" onclick="confirmBooking()"><i class="fas fa-check"></i> Confirmer le Rendez-vous</button>
         </div>
       </div>
@@ -934,6 +939,15 @@ async function submitReview() {
     const { data: lastSlot } = await sb.from('appointments').select('slot_number').eq('doctor_id', selectedDoctorId).eq('date', date).order('slot_number',{ascending:false}).limit(1).maybeSingle();
     const slotNumber = (lastSlot?.slot_number || 0) + 1;
 
+    // Optional reason/note for the visit — appointments.notes already
+    // exists in the schema and is already rendered by the patient/doctor
+    // appointment-detail modals; this is the only missing write path.
+    // Trimmed and capped defensively even though the textarea already
+    // enforces maxlength=300 client-side. Empty input stores null,
+    // matching the column's existing nullable behavior for older rows.
+    const noteRaw = $('bookingNotes')?.value.trim() || '';
+    const note = noteRaw ? noteRaw.slice(0, 300) : null;
+
     const btn = $('bookBtn');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Réservation…';
@@ -946,7 +960,8 @@ async function submitReview() {
       start_time:      selectedSlot + ':00',
       end_time:        endTime,
       status:          'pending',
-      slot_number:     slotNumber
+      slot_number:     slotNumber,
+      notes:           note
     }]);
 
     btn.disabled = false;
@@ -960,6 +975,8 @@ async function submitReview() {
     showToast('success', `Rendez-vous le ${date} à ${selectedSlot} confirmé !`);
     selectedSlot = null;
     document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+    if ($('bookingNotes')) $('bookingNotes').value = '';
+    if ($('bookingNotesCount')) $('bookingNotesCount').textContent = '0/300';
     await loadAppointments();
     await loadSlots();
   }
@@ -986,6 +1003,12 @@ async function submitReview() {
   // ── Init ──────────────────────────────────────────────────────
   (async function init() {
   $('bookingDate').value = new Date().toISOString().split('T')[0];
+  const bookingNotesEl = $('bookingNotes');
+  if (bookingNotesEl) {
+    bookingNotesEl.addEventListener('input', () => {
+      $('bookingNotesCount').textContent = `${bookingNotesEl.value.length}/300`;
+    });
+  }
   await loadPatientInfo();
   await Promise.all([loadAppointments(), loadRecords(), loadPrescriptions(), loadSpecialties(), loadPastAppointments()]);
   await loadDoctors();
