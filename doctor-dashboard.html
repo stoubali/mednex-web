@@ -183,6 +183,24 @@
     .badge-generated { background: #DCFCE7; color: #166534; }
     .badge-sent { background: #DBEAFE; color: #1E40AF; }
     .prescription-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; justify-content: flex-end; }
+
+    /* Medical-record amendment history (Task #2) */
+    .history-toggle { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; background:rgba(255,255,255,0.5); border:1px solid var(--border); border-radius:60px; padding:10px 18px; margin-top:18px; cursor:pointer; font-family:inherit; font-size:0.85rem; font-weight:600; color:var(--primary); transition:all var(--transition); }
+    .history-toggle:hover { background:var(--light-green); border-color:var(--secondary); }
+    .history-toggle i.chevron { transition:transform var(--transition); }
+    .history-toggle.open i.chevron { transform:rotate(180deg); }
+    .history-panel { display:none; margin-top:12px; border:1px solid var(--border); border-radius:var(--radius-md); background:rgba(255,255,255,0.4); padding:6px; max-height:320px; overflow-y:auto; }
+    .history-panel.open { display:block; }
+    .history-entry { background:white; border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 16px; margin:6px; font-size:0.82rem; }
+    .history-entry .history-entry-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed var(--border); }
+    .history-entry .history-who { font-weight:600; color:var(--primary); }
+    .history-entry .history-when { font-size:0.72rem; color:#5A6F66; }
+    .history-field { display:flex; gap:6px; padding:3px 0; }
+    .history-field .field-label { flex-shrink:0; font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; color:#5A6F66; min-width:100px; }
+    .history-field .field-value { color:#1A3A2E; word-break:break-word; }
+    .history-empty { text-align:center; padding:24px 12px; color:#8A9E96; font-size:0.8rem; }
+    .history-empty i { font-size:1.4rem; opacity:0.4; display:block; margin-bottom:6px; }
+    .history-loading { text-align:center; padding:18px 12px; color:#5A6F66; font-size:0.8rem; }
   </style>
 </head>
 <body>
@@ -543,6 +561,14 @@
           <div><label style="font-weight:500;font-size:0.85rem;">Notes cliniques</label><textarea id="editMrClinicalNotes" style="width:100%;min-height:80px;padding:10px 14px;border-radius:16px;border:1px solid var(--border);font-family:inherit;margin-top:4px;resize:vertical;"></textarea></div>
           <div><label style="font-weight:500;font-size:0.85rem;">Plan de traitement</label><textarea id="editMrTreatmentPlan" style="width:100%;min-height:80px;padding:10px 14px;border-radius:16px;border:1px solid var(--border);font-family:inherit;margin-top:4px;resize:vertical;"></textarea></div>
         </div>
+        <button type="button" class="history-toggle" id="mrHistoryToggle" onclick="toggleRecordHistory()">
+          <span><i class="fas fa-history"></i> Historique des modifications</span>
+          <i class="fas fa-chevron-down chevron"></i>
+        </button>
+        <div class="history-panel" id="mrHistoryPanel">
+          <div class="history-loading" id="mrHistoryLoading" style="display:none;"><i class="fas fa-spinner fa-spin"></i> Chargement de l'historique…</div>
+          <div id="mrHistoryList"></div>
+        </div>
         <div class="modal-actions" id="editMrActions">
           <!-- populated dynamically in openEditMedicalRecordModal() based on current status -->
         </div>
@@ -619,6 +645,12 @@
   let editingMedicalRecordId = null;
   // Medical records loaded from Supabase
   let medicalRecords = [];
+  // Medical-record amendment history (Task #2) — small local cache so
+  // switching doctor_id -> full_name lookups (for entries authored by a
+  // different doctor, e.g. before a reassignment) doesn't re-query every
+  // time the history panel is opened.
+  let historyDoctorNameCache = {};
+  let historyLoadedForRecordId = null;
 
   // ── Clock & date ──────────────────────────────────────────────
   function updateClock() {
@@ -1242,7 +1274,114 @@
         <button class="btn-primary" onclick="updateMedicalRecord('amended')"><i class="fas fa-save"></i> Enregistrer les modifications</button>`;
     }
 
+    // Reset the history panel to its collapsed, unloaded state each time
+    // a (possibly different) record is opened — history is lazy-loaded
+    // only if/when the doctor actually expands the toggle.
+    historyLoadedForRecordId = null;
+    $('mrHistoryToggle').classList.remove('open');
+    $('mrHistoryPanel').classList.remove('open');
+    $('mrHistoryList').innerHTML = '';
+    $('mrHistoryLoading').style.display = 'none';
+
     $('editMedicalRecordModal').classList.add('active');
+  }
+
+  // ── Medical-record amendment history (Task #2) ─────────────────
+  // Lazy-loaded: only queried when the doctor expands the toggle inside
+  // editMedicalRecordModal, and only once per record per modal-open.
+  // Reads ONLY the existing medical_record_history table — RLS already
+  // restricts this to (a) admins and (b) the doctor who currently owns
+  // the record, so no extra frontend authorization check is added here;
+  // the Supabase client simply returns nothing for anything outside that
+  // scope.
+  function toggleRecordHistory() {
+    const toggle = $('mrHistoryToggle');
+    const panel = $('mrHistoryPanel');
+    const isOpen = panel.classList.toggle('open');
+    toggle.classList.toggle('open', isOpen);
+    if (isOpen && editingMedicalRecordId && historyLoadedForRecordId !== editingMedicalRecordId) {
+      loadRecordHistory(editingMedicalRecordId);
+    }
+  }
+
+  async function loadRecordHistory(recordId) {
+    $('mrHistoryLoading').style.display = 'block';
+    $('mrHistoryList').innerHTML = '';
+
+    const { data, error } = await sb
+      .from('medical_record_history')
+      .select('id, changed_by_doctor_id, changed_at, previous_data')
+      .eq('medical_record_id', recordId)
+      .order('changed_at', { ascending: false })
+      .limit(50);
+
+    $('mrHistoryLoading').style.display = 'none';
+
+    if (error) {
+      $('mrHistoryList').innerHTML = `<div class="history-empty"><i class="fas fa-triangle-exclamation"></i>Erreur: ${esc(error.message)}</div>`;
+      return;
+    }
+
+    historyLoadedForRecordId = recordId;
+
+    if (!data || !data.length) {
+      $('mrHistoryList').innerHTML = '<div class="history-empty"><i class="fas fa-clock-rotate-left"></i>Aucune modification enregistrée pour ce dossier</div>';
+      return;
+    }
+
+    const authorIds = [...new Set(data.map(h => h.changed_by_doctor_id).filter(Boolean))];
+    const authorNames = await resolveDoctorNames(authorIds);
+
+    const statusLabel = { draft: 'Brouillon', completed: 'Complété', amended: 'Modifié' };
+
+    $('mrHistoryList').innerHTML = data.map(h => {
+      const prev = h.previous_data || {};
+      const who = h.changed_by_doctor_id === doctorId
+        ? 'Vous'
+        : (authorNames[h.changed_by_doctor_id] || 'Médecin inconnu');
+      const when = h.changed_at ? new Date(h.changed_at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) : '–';
+
+      const fields = [
+        ['Motif de visite', prev.visit_reason],
+        ['Diagnostic', prev.diagnosis],
+        ['Notes cliniques', prev.clinical_notes],
+        ['Plan de traitement', prev.treatment_plan],
+        ['Statut', statusLabel[prev.status] || prev.status],
+      ];
+
+      const fieldsHtml = fields.map(([label, value]) => `
+        <div class="history-field">
+          <span class="field-label">${esc(label)}</span>
+          <span class="field-value">${value ? esc(value) : '<em style="color:#8A9E96;">—</em>'}</span>
+        </div>`).join('');
+
+      return `
+        <div class="history-entry">
+          <div class="history-entry-head">
+            <span class="history-who"><i class="fas fa-user-md"></i> ${esc(who)}</span>
+            <span class="history-when"><i class="far fa-clock"></i> ${esc(when)}</span>
+          </div>
+          ${fieldsHtml}
+        </div>`;
+    }).join('');
+  }
+
+  // Resolve doctor_id -> full_name via the public_doctors view, the same
+  // pattern already established in patient-dashboard.html's
+  // getDoctorsMap() for reading doctor identity outside the "own profile"
+  // RLS scope. Cached locally per modal session.
+  async function resolveDoctorNames(ids) {
+    const missing = ids.filter(id => !historyDoctorNameCache[id]);
+    if (missing.length) {
+      const { data, error } = await sb.from('public_doctors').select('id, full_name').in('id', missing);
+      if (error) {
+        console.warn('[history] public_doctors lookup failed:', error.message);
+      }
+      (data || []).forEach(d => { historyDoctorNameCache[d.id] = d.full_name; });
+    }
+    const map = {};
+    ids.forEach(id => { map[id] = historyDoctorNameCache[id] || null; });
+    return map;
   }
 
   async function updateMedicalRecord(newStatus) {
@@ -1864,6 +2003,7 @@
   window.loadRecentMedicalRecords = loadRecentMedicalRecords;
   window.openEditMedicalRecordModal = openEditMedicalRecordModal;
   window.updateMedicalRecord    = updateMedicalRecord;
+  window.toggleRecordHistory    = toggleRecordHistory;
   window.addMedication          = addMedication;
   window.removeMedication       = removeMedication;
   window.saveDraft              = saveDraft;
