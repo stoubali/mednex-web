@@ -830,7 +830,7 @@
         <td>
           <button class="btn-icon" onclick="openPatientModal('${esc(p.id)}')" title="Voir"><i class="fas fa-eye"></i></button>
           ${p.status==='pending'?`<button class="btn-icon" onclick="confirmAppt('${esc(p.id)}')" title="Confirmer"><i class="fas fa-check" style="color:var(--success)"></i></button>`:''}
-          ${p.status!=='cancelled'?`<button class="btn-icon danger" onclick="cancelAppt('${esc(p.id)}')" title="Annuler"><i class="fas fa-times"></i></button>`:''}
+          ${(p.status!=='cancelled' && p.status!=='completed')?`<button class="btn-icon danger" onclick="cancelAppt('${esc(p.id)}')" title="Annuler"><i class="fas fa-times"></i></button>`:''}
           <button class="btn-icon" onclick="openPrescriptionModal('${esc(p.id)}')" title="Créer une ordonnance"><i class="fas fa-prescription" style="color:var(--primary);"></i></button>
           <button class="btn-icon" onclick="openMedicalRecordModal('${esc(p.id)}')" title="Créer un dossier médical"><i class="fas fa-file-medical" style="color:var(--primary);"></i></button>
         </td>

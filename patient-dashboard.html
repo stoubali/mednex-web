@@ -486,7 +486,7 @@ async function loadPastAppointments() {
   // patient-scoped view so the appointment row survives the doctor
   // join for a patient session. Filter/order/limit semantics unchanged.
   const { data: past } = await sb.from('patient_appointment_details').select('*')
-    .lt('date', today).eq('status', 'confirmed')
+    .lt('date', today).in('status', ['confirmed', 'completed'])
     .order('date', { ascending: false }).limit(20);
 
   const { data: myReviews } = await sb.from('reviews').select('*').eq('patient_id', patientId);
@@ -580,7 +580,7 @@ async function submitReview() {
       ${a.notes?`<div class="modal-row"><span>Notes</span><span>${esc(a.notes)}</span></div>`:''}`;
 
     $('cancelApptBtn').onclick = () => cancelAppt(a.id);
-    if (a.status === 'cancelled') $('cancelApptBtn').style.display = 'none';
+    if (a.status === 'cancelled' || a.status === 'completed') $('cancelApptBtn').style.display = 'none';
     else $('cancelApptBtn').style.display = 'inline-flex';
 
     $('apptModal').classList.add('active');

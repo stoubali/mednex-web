@@ -865,6 +865,7 @@
                 <path d="M18 2a16 16 0 1 1 0 32A16 16 0 0 1 18 2" fill="none" stroke="#E2ECE6" stroke-width="4"/>
                 <path id="donutConfirmed" d="M18 2a16 16 0 1 1 0 32A16 16 0 0 1 18 2" fill="none" stroke="#22C55E" stroke-width="4" stroke-dasharray="0 100" stroke-linecap="round" style="transition:stroke-dasharray 1s ease;"/>
                 <path id="donutPending" d="M18 2a16 16 0 1 1 0 32A16 16 0 0 1 18 2" fill="none" stroke="#F59E0B" stroke-width="4" stroke-dasharray="0 100" stroke-linecap="round" style="transition:stroke-dasharray 1s ease 0.3s;"/>
+                <path id="donutCompleted" d="M18 2a16 16 0 1 1 0 32A16 16 0 0 1 18 2" fill="none" stroke="#3B82F6" stroke-width="4" stroke-dasharray="0 100" stroke-linecap="round" style="transition:stroke-dasharray 1s ease 0.45s;"/>
                 <text x="18" y="17" text-anchor="middle" font-size="5" font-family="Inter" font-weight="700" fill="#0B3D2E" id="donutCenter">–</text>
                 <text x="18" y="22" text-anchor="middle" font-size="2.5" font-family="Inter" fill="#5A6F66">RDV</text>
               </svg>
@@ -877,6 +878,10 @@
               <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.78rem;">
                 <span style="display:flex;align-items:center;gap:6px;color:#3A5A4E;"><span style="width:8px;height:8px;border-radius:2px;background:#F59E0B;display:inline-block;"></span>En attente</span>
                 <strong id="donutPendingLabel">–</strong>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.78rem;">
+                <span style="display:flex;align-items:center;gap:6px;color:#3A5A4E;"><span style="width:8px;height:8px;border-radius:2px;background:#3B82F6;display:inline-block;"></span>Terminés</span>
+                <strong id="donutCompletedLabel">–</strong>
               </div>
               <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.78rem;">
                 <span style="display:flex;align-items:center;gap:6px;color:#3A5A4E;"><span style="width:8px;height:8px;border-radius:2px;background:#EF4444;display:inline-block;"></span>Annulés</span>
@@ -1141,6 +1146,7 @@
             <option value="">Tous les statuts</option>
             <option value="confirmed">Confirmés</option>
             <option value="pending">En attente</option>
+            <option value="completed">Terminés</option>
             <option value="cancelled">Annulés</option>
           </select>
           <button class="btn btn-outline btn-sm" onclick="exportApptsCSV()"><i class="fas fa-file-export"></i> CSV</button>
@@ -1860,6 +1866,7 @@
     const { data: apptStatuses } = await sb.from('appointments').select('status');
     const confirmed  = apptStatuses?.filter(a => a.status === 'confirmed').length  || 0;
     const pendingA   = apptStatuses?.filter(a => a.status === 'pending').length    || 0;
+    const completedA = apptStatuses?.filter(a => a.status === 'completed').length  || 0;
     const cancelled  = apptStatuses?.filter(a => a.status === 'cancelled').length  || 0;
     const total      = apptStatuses?.length || 1;
     const pct = (v) => Math.round((v / total) * 100);
@@ -1867,13 +1874,16 @@
     document.getElementById('donutCenter').textContent       = total;
     document.getElementById('donutConfirmedLabel').textContent = confirmed;
     document.getElementById('donutPendingLabel').textContent   = pendingA;
+    document.getElementById('donutCompletedLabel').textContent = completedA;
     document.getElementById('donutCancelledLabel').textContent = cancelled;
 
     const confPct = pct(confirmed);
     const pendPct = pct(pendingA);
+    const compPct = pct(completedA);
     setTimeout(() => {
       document.getElementById('donutConfirmed').setAttribute('stroke-dasharray', `${confPct} ${100 - confPct}`);
       document.getElementById('donutPending').setAttribute('stroke-dasharray', `${pendPct} ${100 - pendPct}`);
+      document.getElementById('donutCompleted').setAttribute('stroke-dasharray', `${compPct} ${100 - compPct}`);
     }, 200);
 
     // Pending approvals preview
@@ -2698,6 +2708,7 @@
   function renderApptsTable(appts) {
     const tb = document.getElementById('apptsTableBody');
     if (!appts.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#8A9E96;">Aucun rendez-vous</td></tr>'; return; }
+    const apptStatusBadge = {confirmed:'badge-success',pending:'badge-warning',completed:'badge-info',cancelled:'badge-danger'};
     tb.innerHTML = appts.map(a => `
       <tr>
         <td><strong>${esc(a.patient_name||'–')}</strong></td>
@@ -2705,9 +2716,9 @@
         <td>${esc(a.date||'–')}</td>
         <td>${esc(a.start_time?.slice(0,5)||'–')} – ${esc(a.end_time?.slice(0,5)||'–')}</td>
         <td>#${esc(String(a.slot_number||'?').padStart(2,'0'))}</td>
-        <td><span class="badge ${a.status==='confirmed'?'badge-success':a.status==='pending'?'badge-warning':'badge-danger'}">${esc(a.status)}</span></td>
+        <td><span class="badge ${apptStatusBadge[a.status] || 'badge-neutral'}">${esc(a.status)}</span></td>
         <td>
-          ${a.status!=='cancelled' ? `<button class="btn btn-danger btn-sm" onclick="adminCancelAppt('${esc(a.id)}')"><i class="fas fa-times"></i></button>` : ''}
+          ${(a.status!=='cancelled' && a.status!=='completed') ? `<button class="btn btn-danger btn-sm" onclick="adminCancelAppt('${esc(a.id)}')"><i class="fas fa-times"></i></button>` : ''}
         </td>
       </tr>`).join('');
   }
