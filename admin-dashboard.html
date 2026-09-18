@@ -705,6 +705,10 @@
         <div class="nav-icon"><i class="fas fa-hospital-user"></i></div>
         Patients
       </button>
+      <button class="nav-item" onclick="showView('medicalrecords', this)">
+        <div class="nav-icon"><i class="fas fa-file-medical"></i></div>
+        Dossiers médicaux
+      </button>
 
       <div class="nav-section-label">Plateforme</div>
       <button class="nav-item" onclick="showView('stats', this)">
@@ -1076,6 +1080,36 @@
       </div>
 
       <!-- ═══════════════════════════════════════════ -->
+      <!-- VIEW: MEDICAL RECORDS (Task #5, read-only)  -->
+      <!-- ═══════════════════════════════════════════ -->
+      <div class="view" id="view-medicalrecords">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+          <input class="filter-input" type="text" placeholder="Patient, médecin…" id="mrSearch" oninput="filterMedicalRecords()" style="min-width:220px;" />
+          <select class="filter-input" id="mrStatusFilter" onchange="filterMedicalRecords()">
+            <option value="">Tous les statuts</option>
+            <option value="draft">Brouillon</option>
+            <option value="completed">Complété</option>
+            <option value="amended">Modifié</option>
+          </select>
+          <span class="badge badge-neutral" id="mrCountLabel">–</span>
+          <button class="btn btn-outline btn-sm" onclick="exportMedicalRecordsCSV()"><i class="fas fa-file-export"></i> CSV</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Patient</th><th>Médecin</th><th>Date</th><th>Motif</th><th>Diagnostic</th><th>Statut</th></tr>
+              </thead>
+              <tbody id="medicalRecordsTableBody">
+                <tr><td colspan="6" style="text-align:center;padding:30px;color:#8A9E96;"><i class="fas fa-spinner fa-spin"></i></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="medicalRecordsPager"></div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════ -->
       <!-- VIEW: STATISTICS                            -->
       <!-- ═══════════════════════════════════════════ -->
       <div class="view" id="view-stats">
@@ -1346,6 +1380,17 @@
     </div>
   </div>
 
+  <!-- Medical Record Detail Modal (Task #5, read-only — no edit/delete anywhere here) -->
+  <div class="modal-overlay" id="medicalRecordModal">
+    <div class="modal-box">
+      <h3><i class="fas fa-file-medical"></i> Dossier Médical</h3>
+      <div id="medicalRecordModalContent"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal('medicalRecordModal')">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Contact Message Detail Modal (read-only content, conditional actions) -->
   <div class="modal-overlay" id="contactMessageModal">
     <div class="modal-box">
@@ -1606,6 +1651,7 @@
     users: ['Gestion des Utilisateurs', 'Tous les comptes de la plateforme'],
     doctors: ['Médecins', 'Liste complète des médecins inscrits'],
     patients: ['Patients', 'Liste complète des patients inscrits'],
+    medicalrecords: ['Dossiers médicaux', 'Tous les dossiers médicaux de la plateforme'],
     stats: ['Statistiques', 'Métriques globales de la plateforme'],
     appointments: ['Rendez-vous', 'Tous les rendez-vous planifiés'],
     prescriptions: ['Ordonnances', 'Toutes les ordonnances émises'],
@@ -1648,6 +1694,7 @@
     if (name === 'users')     await loadUsers();
     if (name === 'doctors')   await loadDoctorsTable();
     if (name === 'patients')  await loadPatientsTable();
+    if (name === 'medicalrecords') await loadMedicalRecordsTable();
     if (name === 'stats')     await loadStats();
     if (name === 'appointments') await loadApptsTable();
     if (name === 'prescriptions') await loadRxTable();
@@ -2625,6 +2672,123 @@
     document.getElementById('patientModal').classList.add('active');
   }
 
+  // ── MEDICAL RECORDS TABLE (Task #5, read-only) ──────────────────
+  // Same status vocabulary/labels already used by patient-dashboard.html
+  // and doctor-dashboard.html for this table — kept identical here for
+  // consistency, not redefined differently.
+  const RECORD_STATUS_LABEL = { draft: 'Brouillon', completed: 'Complété', amended: 'Modifié' };
+  const RECORD_STATUS_BADGE = { draft: 'badge-warning', completed: 'badge-success', amended: 'badge-info' };
+
+  let allMedicalRecordsFull = [];
+  const medicalRecordsState = { page: 1, search: '', status: '' };
+
+  function buildMedicalRecordsQuery(base) {
+    let q = base;
+    if (medicalRecordsState.status) q = q.eq('status', medicalRecordsState.status);
+    if (medicalRecordsState.search) {
+      const s = medicalRecordsState.search;
+      // Task #5 — corrected per empirical verification: OR-ing a single
+      // !inner-embed filter across two DIFFERENT embedded relations does not
+      // reliably restrict the outer medical_records rows in PostgREST. The
+      // verified-working pattern instead uses two extra, separately-aliased
+      // LEFT (optional) embeds of the same two relationships — patient_match/
+      // doctor_match, selected below in loadMedicalRecordsTable()/
+      // exportMedicalRecordsCSV() — each filtered independently on its own
+      // alias. An unmatched alias resolves to null for that row rather than
+      // excluding it; the top-level .or() below on "alias.not.is.null" then
+      // correctly restricts the outer rows to "patient matched OR doctor
+      // matched". Confirmed against this project both via a live PostgREST
+      // test and via the equivalent SQL join semantics (see implementation
+      // report) before shipping.
+      q = q
+        .filter('patient_match.full_name', 'ilike', `%${s}%`)
+        .filter('doctor_match.full_name', 'ilike', `%${s}%`)
+        .or('patient_match.not.is.null,doctor_match.not.is.null');
+    }
+    return q;
+  }
+
+  async function loadMedicalRecordsTable(page = 1) {
+    medicalRecordsState.page = page;
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    const { data, count, error } = await buildMedicalRecordsQuery(
+      sb.from('medical_records').select('*, patients(full_name), doctors(full_name,specialty), patient_match:patients(full_name), doctor_match:doctors(full_name)', { count: 'exact' })
+    ).order('record_date', { ascending: false }).range(from, to);
+
+    if (error) { console.error('loadMedicalRecordsTable error:', error); showToast('error', error.message); return; }
+    allMedicalRecordsFull = data || [];
+    renderMedicalRecordsTable(allMedicalRecordsFull, count || 0);
+    renderPager('medicalRecordsPager', page, count || 0, PAGE_SIZE, loadMedicalRecordsTable);
+  }
+
+  function renderMedicalRecordsTable(records, totalCount) {
+    const label = document.getElementById('mrCountLabel');
+    if (label) label.textContent = (totalCount ?? records.length) + ' dossier(s)';
+    const tb = document.getElementById('medicalRecordsTableBody');
+    if (!records.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#8A9E96;">Aucun dossier médical</td></tr>'; return; }
+
+    tb.innerHTML = records.map(r => `
+      <tr style="cursor:pointer;" onclick="viewMedicalRecordDetail('${esc(r.id)}')">
+        <td><strong>${esc(r.patients?.full_name || '–')}</strong></td>
+        <td>${esc(r.doctors?.full_name ? 'Dr. ' + r.doctors.full_name : '–')}</td>
+        <td>${esc(r.record_date || '–')}</td>
+        <td>${esc(r.visit_reason || '–')}</td>
+        <td>${esc(r.diagnosis ? (r.diagnosis.length > 35 ? r.diagnosis.slice(0,35) + '…' : r.diagnosis) : '–')}</td>
+        <td><span class="badge ${RECORD_STATUS_BADGE[r.status] || 'badge-neutral'}">${esc(RECORD_STATUS_LABEL[r.status] || r.status)}</span></td>
+      </tr>`).join('');
+  }
+
+  const filterMedicalRecordsDebounced = debounce(() => loadMedicalRecordsTable(1));
+  function filterMedicalRecords() {
+    medicalRecordsState.search = document.getElementById('mrSearch')?.value.trim() || '';
+    medicalRecordsState.status = document.getElementById('mrStatusFilter')?.value || '';
+    filterMedicalRecordsDebounced();
+  }
+
+  // Read-only detail view — no edit/delete anywhere in this modal, matching
+  // the fact that medical_records has no admin UPDATE/DELETE RLS policy.
+  // Looks up from the already-loaded current page rather than re-querying,
+  // same pattern as patient-dashboard.html's openRecordDetailModal().
+  function viewMedicalRecordDetail(id) {
+    const r = allMedicalRecordsFull.find(x => x.id === id);
+    if (!r) return;
+
+    document.getElementById('medicalRecordModalContent').innerHTML = `
+      <div class="modal-row"><span class="label">Patient</span><span class="value">${esc(r.patients?.full_name || '–')}</span></div>
+      <div class="modal-row"><span class="label">Médecin</span><span class="value">${esc(r.doctors?.full_name ? 'Dr. ' + r.doctors.full_name : '–')}</span></div>
+      <div class="modal-row"><span class="label">Spécialité</span><span class="value">${esc(r.doctors?.specialty || '–')}</span></div>
+      <div class="modal-row"><span class="label">Date de la visite</span><span class="value">${esc(r.record_date || '–')}</span></div>
+      <div class="modal-row"><span class="label">Motif de la visite</span><span class="value">${esc(r.visit_reason || '–')}</span></div>
+      <div class="modal-row"><span class="label">Diagnostic</span><span class="value">${esc(r.diagnosis || '–')}</span></div>
+      ${r.clinical_notes ? `<div class="modal-row" style="flex-direction:column;align-items:flex-start;gap:4px;"><span class="label">Notes cliniques</span><span class="value" style="text-align:left;font-weight:400;line-height:1.5;">${esc(r.clinical_notes)}</span></div>` : ''}
+      ${r.treatment_plan ? `<div class="modal-row" style="flex-direction:column;align-items:flex-start;gap:4px;"><span class="label">Plan de traitement</span><span class="value" style="text-align:left;font-weight:400;line-height:1.5;">${esc(r.treatment_plan)}</span></div>` : ''}
+      <div class="modal-row"><span class="label">Statut</span><span class="value"><span class="badge ${RECORD_STATUS_BADGE[r.status] || 'badge-neutral'}">${esc(RECORD_STATUS_LABEL[r.status] || r.status)}</span></span></div>
+      <div class="modal-row"><span class="label">Dernière mise à jour</span><span class="value">${r.updated_at ? esc(new Date(r.updated_at).toLocaleString('fr-FR')) : '–'}</span></div>`;
+
+    document.getElementById('medicalRecordModal').classList.add('active');
+  }
+
+  async function exportMedicalRecordsCSV() {
+    const { data, error } = await buildMedicalRecordsQuery(
+      sb.from('medical_records').select('*, patients(full_name), doctors(full_name,specialty), patient_match:patients(full_name), doctor_match:doctors(full_name)')
+    ).order('record_date', { ascending: false }).limit(EXPORT_MAX_ROWS);
+    if (error) { showToast('error', error.message); return; }
+    if ((data||[]).length === EXPORT_MAX_ROWS) showToast('warning', `Export limité à ${EXPORT_MAX_ROWS} lignes`);
+    exportToCSV(data, [
+      ['Patient', r => r.patients?.full_name || '–'],
+      ['Médecin', r => r.doctors?.full_name || '–'],
+      ['Spécialité', r => r.doctors?.specialty || '–'],
+      ['Date', r => r.record_date || '–'],
+      ['Motif', r => r.visit_reason || '–'],
+      ['Diagnostic', r => r.diagnosis || '–'],
+      ['Notes cliniques', r => r.clinical_notes || ''],
+      ['Plan de traitement', r => r.treatment_plan || ''],
+      ['Statut', r => RECORD_STATUS_LABEL[r.status] || r.status],
+      ['Créé le', r => formatDate(r.created_at)],
+    ], 'dossiers-medicaux');
+  }
+
   // ── STATS ─────────────────────────────────────────────────────
   async function loadStats() {
     const [
@@ -3257,6 +3421,9 @@
   window.deleteContactFromModal   = deleteContactFromModal;
   window.exportContactMessagesCSV = exportContactMessagesCSV;
   window.viewPatientDetail    = viewPatientDetail;
+  window.viewMedicalRecordDetail = viewMedicalRecordDetail;
+  window.filterMedicalRecords = filterMedicalRecords;
+  window.exportMedicalRecordsCSV = exportMedicalRecordsCSV;
   window.approveDoctorFromModal = approveDoctorFromModal;
   window.rejectDoctorFromModal  = rejectDoctorFromModal;
   window.filterApprovals      = filterApprovals;
