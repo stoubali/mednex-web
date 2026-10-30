@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Explorez la démo fictive de Jureqa, sans créer de compte.">
+  <title>Jureqa — Démo publique</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="demo.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="demo.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+  <a class="brand" href="index.html" aria-label="Jureqa — retour à l'accueil">
+    <span class="brand-mark" aria-hidden="true">✚</span><span>Jureqa</span>
+  </a>
+
+  <div class="topbar-actions">
+    <span class="demo-pill"><span class="pulse"></span> Environnement de démonstration</span>
+    <a class="home-link" href="index.html">
+      <span aria-hidden="true">←</span> Retour à l'accueil
+    </a>
+  </div>
+</header>
+
+    <section class="notice" role="note">
+      <strong>Démo uniquement — données fictives.</strong>
+      Les rendez-vous créés ici restent dans l'environnement de test. Aucun vrai médecin ou patient n'est contacté et aucun rendez-vous réel n'est pris.
+    </section>
+
+    <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+    <section id="app" aria-live="polite">
+      <div class="loading-card"><span class="spinner"></span><p>Préparation de la démo…</p></div>
+    </section>
+    <footer class="footer">Jureqa · Démonstration indépendante · Aucun compte ni mot de passe requis</footer>
+  </main>
+</body>
+</html>
