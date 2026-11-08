@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0B3D2E">
+  <meta name="description" content="Be among the first to hear when Jureqa launches. Join the early access list for patients and healthcare professionals.">
+  <title>Jureqa — Healthcare, made simpler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #134F33;
+      --secondary: #1C7A4D;
+      --dark: #0B1E18;
+      --muted: #5A6F66;
+      --background: #F7FAF8;
+      --surface: #FFFFFF;
+      --soft-green: #EAF7EF;
+      --border: #E5ECE8;
+      --dark-green: #0B3D2E;
+      --radius: 22px;
+      --shadow: 0 20px 55px rgba(0, 32, 16, .09);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--dark);
+      background:
+        radial-gradient(ellipse at 12% 8%, rgba(234,247,239,.9), transparent 34rem),
+        var(--background);
+      font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+    }
+    a { color: inherit; }
+    .page {
+      width: min(1080px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+    header {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 72px;
+      padding: 14px 20px;
+      isolation: isolate;
+    }
+    /* Full-width dark navbar, matching the Jureqa landing page's green identity. */
+    header::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 100vw;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #0B3D2E 0%, #134F33 55%, #1C7A4D 100%);
+      box-shadow: 0 8px 24px rgba(0, 32, 16, .12);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 0;
+      text-decoration: none;
+    }
+    .brand img {
+      display: block;
+      width: auto;
+      height: 36px;
+      max-width: min(190px, 48vw);
+      object-fit: contain;
+    }
+    .header-note {
+      color: rgba(255,255,255,.82);
+      font-size: .88rem;
+      font-weight: 600;
+      text-align: right;
+    }
+    main {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      align-items: center;
+      gap: clamp(35px, 7vw, 85px);
+      padding: clamp(48px, 9vh, 105px) 0 90px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 13px;
+      border: 1px solid #d8ebdf;
+      border-radius: 999px;
+      color: var(--primary);
+      background: rgba(234,247,239,.8);
+      font-size: .78rem;
+      font-weight: 750;
+      letter-spacing: .055em;
+      text-transform: uppercase;
+    }
+    .eyebrow-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22C55E;
+      box-shadow: 0 0 0 4px rgba(34,197,94,.12);
+    }
+    h1 {
+      max-width: 620px;
+      margin: 23px 0 18px;
+      color: var(--primary);
+      font-size: clamp(2.7rem, 5.8vw, 4.65rem);
+      line-height: 1.04;
+      letter-spacing: -.065em;
+    }
+    .intro {
+      max-width: 520px;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 1.5vw, 1.13rem);
+    }
+    .benefits {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 11px 18px;
+      margin-top: 28px;
+      color: #355849;
+      font-size: .88rem;
+      font-weight: 650;
+    }
+    .benefits span::before {
+      content: "✓";
+      margin-right: 7px;
+      color: var(--secondary);
+      font-weight: 900;
+    }
+    .signup-card {
+      padding: clamp(25px, 4vw, 38px);
+      border: 1px solid rgba(229,236,232,.95);
+      border-radius: 28px;
+      background: rgba(255,255,255,.92);
+      box-shadow: var(--shadow);
+    }
+    .signup-card h2 {
+      margin: 0 0 7px;
+      color: var(--primary);
+      font-size: 1.55rem;
+      letter-spacing: -.04em;
+    }
+    .card-description {
+      margin: 0 0 25px;
+      color: var(--muted);
+      font-size: .94rem;
+    }
+    label {
+      display: block;
+      margin: 0 0 8px;
+      color: #29483A;
+      font-size: .87rem;
+      font-weight: 700;
+    }
+    input[type="email"] {
+      width: 100%;
+      min-height: 52px;
+      padding: 0 15px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      outline: none;
+      background: #FBFDFC;
+      color: var(--dark);
+      font: inherit;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    input[type="email"]:focus {
+      border-color: var(--secondary);
+      box-shadow: 0 0 0 4px rgba(28,122,77,.11);
+    }
+    .role-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 11px;
+      margin: 0 0 22px;
+    }
+    .role-option { position: relative; }
+    .role-option input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .role-option span {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 52px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      color: #426052;
+      background: #FBFDFC;
+      cursor: pointer;
+      font-size: .91rem;
+      font-weight: 700;
+      transition: .2s ease;
+    }
+    .role-option input:checked + span {
+      border-color: var(--secondary);
+      color: var(--primary);
+      background: var(--soft-green);
+      box-shadow: inset 0 0 0 1px var(--secondary);
+    }
+    .role-option input:focus-visible + span {
+      outline: 3px solid rgba(28,122,77,.25);
+      outline-offset: 3px;
+    }
+    button {
+      width: 100%;
+      min-height: 54px;
+      border: 0;
+      border-radius: 999px;
+      color: white;
+      background: var(--primary);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 750;
+      transition: transform .2s, background .2s, box-shadow .2s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      background: var(--secondary);
+      box-shadow: 0 10px 22px rgba(19,79,51,.17);
+    }
+    button:focus-visible { outline: 3px solid #8bc9a6; outline-offset: 3px; }
+    .privacy-note {
+      margin: 14px 0 0;
+      color: #718279;
+      font-size: .76rem;
+      text-align: center;
+    }
+    .form-message {
+      display: none;
+      margin: 14px 0 0;
+      padding: 11px 13px;
+      border-radius: 12px;
+      color: #744d09;
+      background: #FFF7E6;
+      font-size: .84rem;
+    }
+    .contact {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 24px 0 30px;
+      border-top: 1px solid var(--border);
+    }
+    .contact h2 {
+      margin: 0 0 3px;
+      color: var(--primary);
+      font-size: 1rem;
+    }
+    .contact p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    .contact-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      font-size: .87rem;
+      font-weight: 700;
+    }
+    .contact-links a {
+      color: var(--secondary);
+      text-decoration: none;
+    }
+    .contact-links a:hover { text-decoration: underline; }
+    footer {
+      padding: 0 0 27px;
+      color: #829188;
+      font-size: .78rem;
+      text-align: center;
+    }
+    @media (max-width: 760px) {
+      .page { width: min(100% - 32px, 540px); }
+      header { min-height: 66px; padding: 12px 16px; }
+      .header-note { font-size: .76rem; }
+      main {
+        grid-template-columns: 1fr;
+        gap: 34px;
+        padding: 48px 0 55px;
+      }
+      h1 { max-width: 540px; }
+      .contact { align-items: flex-start; flex-direction: column; }
+    }
+    @media (max-width: 390px) {
+      .header-note { max-width: 115px; text-align: right; font-size: .7rem; }
+      .role-options { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <a class="brand" href="/" aria-label="Jureqa home">
+        <img src="/logo_navbar_admin.png" alt="Jureqa">
+      </a>
+      <span class="header-note">A simpler healthcare experience</span>
+    </header>
+
+    <main>
+      <section aria-labelledby="main-title">
+        <div class="eyebrow"><span class="eyebrow-dot"></span> Coming soon</div>
+        <h1 id="main-title">Healthcare, made simpler.</h1>
+        <p class="intro">
+          Jureqa is building a more connected experience for patients and healthcare
+          professionals. We're working to make everyday healthcare interactions
+          simpler, clearer and easier to manage.
+        </p>
+        <div class="benefits" aria-label="What to expect">
+          <span>For patients</span>
+          <span>For doctors</span>
+          <span>Updates at launch</span>
+        </div>
+      </section>
+
+      <section class="signup-card" aria-labelledby="signup-title">
+        <h2 id="signup-title">Be the first to know</h2>
+        <p class="card-description">
+          Leave your email and tell us how you plan to use Jureqa. We'll be able
+          to contact you when the app launches.
+        </p>
+
+        <form id="early-access-form">
+          <label for="email">Your email address</label>
+          <input id="email" name="email" type="email" placeholder="you@example.com"
+                 autocomplete="email" required>
+
+          <fieldset style="border:0;padding:0;margin:22px 0 0">
+            <legend style="margin:0 0 10px;color:#29483A;font-size:.87rem;font-weight:700">
+              I am a…
+            </legend>
+            <div class="role-options">
+              <label class="role-option">
+                <input type="radio" name="role" value="Patient" required>
+                <span>Patient</span>
+              </label>
+              <label class="role-option">
+                <input type="radio" name="role" value="Doctor" required>
+                <span>Doctor</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <button type="submit">Notify me at launch</button>
+          <p class="privacy-note">No spam. Just an update when Jureqa is ready.</p>
+          <p class="form-message" id="form-message" role="status" aria-live="polite">
+            This is a frontend preview only. The signup form is not connected yet,
+            so your email has not been sent or saved.
+          </p>
+        </form>
+      </section>
+    </main>
+
+    <section class="contact" aria-labelledby="contact-title">
+      <div>
+        <h2 id="contact-title">Want to get in touch?</h2>
+        <p>Questions, ideas or interested in collaborating? Contact the Jureqa team.</p>
+      </div>
+      <div class="contact-links">
+        <!-- Replace the placeholder email and social link before publishing. -->
+        <a href="mailto:YOUR_EMAIL@example.com">Email us</a>
+        <a href="https://www.instagram.com/YOUR_INSTAGRAM/" target="_blank" rel="noopener noreferrer">Instagram</a>
+      </div>
+    </section>
+
+    <footer>© <span id="year"></span> Jureqa. All rights reserved.</footer>
+  </div>
+
+  <script>
+    // Frontend-only demonstration: intentionally does not transmit or store form data.
+    document.getElementById("early-access-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      document.getElementById("form-message").style.display = "block";
+    });
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
