@@ -385,12 +385,55 @@
   </div>
 
   <script>
-    // Frontend-only demonstration: intentionally does not transmit or store form data.
-    document.getElementById("early-access-form").addEventListener("submit", function (event) {
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpSW0kxp1SEhhegtdhn7sZYEu6JCQ30zlEKrNDPwWVhLap4oFYFJPc-r82cPf1dA_W/exec";
+
+  document.getElementById("early-access-form")
+    .addEventListener("submit", async function(event) {
       event.preventDefault();
-      document.getElementById("form-message").style.display = "block";
+
+      const form = event.target;
+      const button = form.querySelector('button[type="submit"]');
+      const message = document.getElementById("form-message");
+
+      const email = document.getElementById("email").value.trim();
+      const role = form.querySelector('input[name="role"]:checked')?.value;
+
+      if (!role) return;
+
+      button.disabled = true;
+      button.textContent = "Submitting...";
+
+      try {
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          body: new URLSearchParams({
+            email: email,
+            role: role
+          })
+        });
+
+        message.style.display = "block";
+        message.style.background = "#EAF7EF";
+        message.style.color = "#134F33";
+        message.textContent =
+          "Thank you! Your registration request has been sent.";
+
+        form.reset();
+
+      } catch (error) {
+        message.style.display = "block";
+        message.textContent =
+          "Something went wrong. Please try again.";
+
+      } finally {
+        button.disabled = false;
+        button.textContent = "Notify me at launch";
+      }
     });
-    document.getElementById("year").textContent = new Date().getFullYear();
-  </script>
+
+  document.getElementById("year").textContent =
+    new Date().getFullYear();
+</script>
 </body>
 </html>
